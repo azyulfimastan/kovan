@@ -20,12 +20,16 @@ export default function Palette({ open, onClose, notes, commands, onOpenNote }) 
   const items = useMemo(() => {
     const s = norm(q)
     const cmds = commands
-      .filter((c) => !s || norm(c.label).includes(s))
+      .filter((c) => (s ? norm(c.label).includes(s) : !c.id.startsWith('lang-')))
       .map((c) => ({ key: 'c-' + c.id, kind: 'cmd', icon: c.icon, label: c.label, run: c.run }))
     const found = notes
-      .filter((n) => s && (norm(n.title).includes(s) || norm(n.body).includes(s)))
-      .sort((a, b) => Number(norm(b.title).includes(s)) - Number(norm(a.title).includes(s)))
-      .slice(0, 8)
+      .filter((n) => !s || norm(n.title).includes(s) || norm(n.body).includes(s))
+      .sort((a, b) =>
+        s
+          ? Number(norm(b.title).includes(s)) - Number(norm(a.title).includes(s))
+          : (a.updated_at < b.updated_at ? 1 : -1),
+      )
+      .slice(0, s ? 8 : 5)
       .map((n) => ({ key: n.id, kind: 'note', icon: 'notes', label: n.title || t('untitled'), run: () => onOpenNote(n.id) }))
     return [...found, ...cmds]
   }, [q, notes, commands, t, onOpenNote])
@@ -66,10 +70,12 @@ export default function Palette({ open, onClose, notes, commands, onOpenNote }) 
           {items.length === 0 && <li className="muted pal-empty">{t('noResults')}</li>}
           {items.map((it, i) => (
             <li key={it.key}>
+              {(i === 0 || items[i - 1].kind !== it.kind) && (
+                <div className="pal-group">{it.kind === 'note' ? t('notesLabel') : t('cmds')}</div>
+              )}
               <button className={i === idx ? 'on' : ''} onMouseEnter={() => setIdx(i)} onClick={() => run(it)}>
                 <Icon name={it.icon} size={16} />
                 <span>{it.label}</span>
-                <em>{it.kind === 'note' ? t('notesLabel') : t('cmds')}</em>
               </button>
             </li>
           ))}

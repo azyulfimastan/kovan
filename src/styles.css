@@ -1256,3 +1256,5 @@ kbd {
 }
 .check-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; font-weight: 500; }
 .check-row input { width: auto; accent-color: var(--honey); }
+
+.pal-group { padding: 8px 14px 4px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
