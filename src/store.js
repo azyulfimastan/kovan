@@ -87,6 +87,20 @@ export const cloudStore = {
     ok(await sb.from('folders').delete().eq('id', id))
   },
 
+  async listColumns(wid) {
+    const { data, error } = await sb.from('board_columns').select('id,name,pos').eq('workspace_id', wid).order('pos')
+    return error ? [] : data
+  },
+  async createColumn(wid, name, pos) {
+    return ok(await sb.from('board_columns').insert({ workspace_id: wid, name, pos }).select('id,name,pos').single())
+  },
+  async updateColumn(id, patch) {
+    ok(await sb.from('board_columns').update(patch).eq('id', id))
+  },
+  async deleteColumn(id) {
+    ok(await sb.from('board_columns').delete().eq('id', id))
+  },
+
   async listNotes(wid) {
     return ok(await sb.from('notes').select('*').eq('workspace_id', wid).order('updated_at', { ascending: false }))
   },
@@ -94,7 +108,7 @@ export const cloudStore = {
     return ok(
       await sb
         .from('notes')
-        .insert({ workspace_id: wid, title: n.title || '', body: n.body || '', tags: n.tags || [], ...(n.folder_id ? { folder_id: n.folder_id } : {}) })
+        .insert({ workspace_id: wid, title: n.title || '', body: n.body || '', tags: n.tags || [], ...(n.folder_id ? { folder_id: n.folder_id } : {}), ...(n.column_id ? { column_id: n.column_id, pos: n.pos || 0 } : {}) })
         .select('*')
         .single(),
     )
@@ -117,6 +131,9 @@ export const cloudStore = {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notes', filter: f }, (p) => h.insert(p.new))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notes', filter: f }, (p) => h.update(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, (p) => h.remove(p.old.id))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'board_columns', filter: f }, (p) => h.colAdd?.(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'board_columns', filter: f }, (p) => h.colUpdate?.(p.new))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'board_columns' }, (p) => h.colRemove?.(p.old.id))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'folders', filter: f }, (p) => h.folderAdd?.(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'folders' }, (p) => h.folderRemove?.(p.old.id))
       .subscribe()
@@ -231,6 +248,27 @@ export const localStore = {
     save(d)
     return f
   },
+  async listColumns() {
+    return (load().columns || []).slice().sort((a, b) => a.pos - b.pos)
+  },
+  async createColumn(wid, name, pos) {
+    const d = load()
+    const c = { id: uid(), name, pos }
+    d.columns = [...(d.columns || []), c]
+    save(d)
+    return c
+  },
+  async updateColumn(id, patch) {
+    const d = load()
+    d.columns = (d.columns || []).map((c) => (c.id === id ? { ...c, ...patch } : c))
+    save(d)
+  },
+  async deleteColumn(id) {
+    const d = load()
+    d.columns = (d.columns || []).filter((c) => c.id !== id)
+    d.notes = d.notes.map((n) => (n.column_id === id ? { ...n, column_id: null } : n))
+    save(d)
+  },
   async deleteFolder(id) {
     const d = load()
     d.folders = (d.folders || []).filter((f) => f.id !== id)
@@ -252,6 +290,8 @@ export const localStore = {
       tags: n.tags || [],
       pinned: false,
       folder_id: n.folder_id || null,
+      column_id: n.column_id || null,
+      pos: n.pos || 0,
       created_at: now,
       updated_at: now,
     }

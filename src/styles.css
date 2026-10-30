@@ -1327,3 +1327,45 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .kb-bar button.b { font-weight: 800; }
 .kb-bar button.i { font-style: italic; font-family: var(--serif); }
 .kb-bar button:active { background: var(--honey-soft); }
+
+/* ---------- board ---------- */
+.board-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.board { flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow: auto; scroll-snap-type: x proximity; }
+.cols { display: flex; align-items: flex-start; gap: 12px; }
+.col { flex: 0 0 280px; width: 280px; background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; max-height: 100%; scroll-snap-align: start; }
+.col.inbox { background: transparent; border-style: dashed; }
+.col.add-col { background: transparent; border-style: dashed; padding: 6px; }
+.col-head { display: flex; align-items: center; gap: 6px; padding: 2px 4px 8px; }
+.col-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-name { cursor: text; }
+.col-head em { font-style: normal; font-size: 12px; color: var(--muted); }
+.col-grip { cursor: grab; color: var(--muted); display: inline-flex; touch-action: none; }
+.col-name-input, .k-add input, .add-col input { width: 100%; padding: 7px 9px; border-radius: 9px; border: 1px solid var(--honey); background: var(--panel); }
+.col-cards { display: flex; flex-direction: column; gap: 8px; min-height: 28px; overflow-y: auto; padding: 2px; }
+.kcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.kcard:hover { border-color: var(--honey); }
+.k-label { display: block; height: 6px; width: 42px; border-radius: 3px; margin-bottom: 7px; }
+.k-cover { display: block; width: 100%; height: 100px; object-fit: cover; border-radius: 7px; margin-bottom: 8px; }
+.k-title { font-weight: 500; word-break: break-word; }
+.k-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.k-due.over { background: var(--danger); color: #fff; padding: 1px 7px; border-radius: 6px; }
+.k-due.soon { background: var(--honey-soft); color: var(--ink); padding: 1px 7px; border-radius: 6px; }
+.k-ck.ok { color: #3fa56a; }
+.k-who { margin-left: auto; }
+.k-add-btn { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 6px; margin-top: 6px; color: var(--muted); border-radius: 9px; text-align: left; }
+.k-add-btn:hover { background: var(--honey-soft); color: var(--ink); }
+.k-add { margin-top: 6px; }
+.drag-ghost { opacity: 0.35; }
+.drag-chosen { box-shadow: var(--shadow); }
+.sortable-fallback { z-index: 300; }
+
+.card-props { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 2px 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.card-props label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.card-props select, .card-props input[type='date'] { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 14px; text-transform: none; letter-spacing: 0; }
+.label-pick { display: flex; gap: 6px; padding-bottom: 6px; }
+.label-pick button { width: 22px; height: 22px; border-radius: 50%; opacity: 0.55; border: 2px solid var(--panel); }
+.label-pick button.on { opacity: 1; box-shadow: 0 0 0 2px var(--ink); }
+@media (max-width: 720px) {
+  .col { flex-basis: 82vw; width: 82vw; }
+  .cols { gap: 12px; }
+}

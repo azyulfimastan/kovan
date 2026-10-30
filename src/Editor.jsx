@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './icons'
 import { useI18n } from './i18n'
 import { renderMarkdown, toggleCheckbox, norm } from './lib/md'
+import { LABELS } from './Board'
 
 const SLASH = [
   { id: 'h1', insert: '# ' },
@@ -60,6 +61,10 @@ export default function Editor({
   onUpload,
   onImages,
   cursors = [],
+  columns = [],
+  members = [],
+  onCard,
+  boardBack,
   onCursor,
   folders = [],
   onFolder,
@@ -336,6 +341,11 @@ export default function Editor({
         <button className="icon-btn only-narrow" onClick={onBack} title={t('back')}>
           <Icon name="back" />
         </button>
+        {boardBack && (
+          <button className="btn small" onClick={boardBack}>
+            ← {t('board')}
+          </button>
+        )}
         <div className="seg">
           <button className={mode === 'edit' ? 'on' : ''} onClick={() => setMode('edit')}>
             <Icon name="edit" size={15} /> {t('edit')}
@@ -402,6 +412,52 @@ export default function Editor({
               }
             }}
           />
+
+          {(columns.length > 0 || note.column_id || note.due || note.label) && (
+            <div className="card-props">
+              <label>
+                <span>{t('inList')}</span>
+                <select value={note.column_id || ''} onChange={(e) => onCard({ column_id: e.target.value || null })}>
+                  <option value="">{t('inbox')}</option>
+                  {columns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>{t('dueDate')}</span>
+                <input type="date" value={note.due || ''} onChange={(e) => onCard({ due: e.target.value || null })} />
+              </label>
+              {members.length > 1 && (
+                <label>
+                  <span>{t('assignee')}</span>
+                  <select value={note.assignee || ''} onChange={(e) => onCard({ assignee: e.target.value || null })}>
+                    <option value="">{t('unassigned')}</option>
+                    {members.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name || m.email}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <div className="label-pick" role="radiogroup" aria-label={t('colorLabel')}>
+                {Object.entries(LABELS).map(([k, c]) => (
+                  <button
+                    key={k}
+                    role="radio"
+                    aria-checked={note.label === k}
+                    className={note.label === k ? 'on' : ''}
+                    style={{ background: c }}
+                    title={k}
+                    onClick={() => onCard({ label: note.label === k ? null : k })}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {mode === 'edit' ? (
             <div className="ed-wrap">

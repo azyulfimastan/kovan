@@ -70,6 +70,13 @@ const P = {
       <path d="M21 16l-5-5-8 8" />
     </>
   ),
+  board: (
+    <>
+      <rect x="3" y="4" width="5" height="16" rx="1.5" />
+      <rect x="10" y="4" width="5" height="10" rx="1.5" />
+      <rect x="17" y="4" width="4" height="13" rx="1.5" />
+    </>
+  ),
   users: (
     <>
       <circle cx="9" cy="8" r="3.5" />

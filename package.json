@@ -15,6 +15,7 @@
     "marked": "^18.1.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "sortablejs": "^1.15.7",
     "yjs": "^13.6.33"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { extractLinks, norm, snippet } from './lib/md'
 import { HexLogo, Icon } from './icons'
 import Editor from './Editor'
 import Graph from './Graph'
+import Board from './Board'
 import Palette from './Palette'
 import ShareDialog from './ShareDialog'
 import Login from './Login'
@@ -81,6 +82,10 @@ function Main() {
   const notes = useMemo(() => allNotes.filter((n) => !n.deleted_at), [allNotes])
   const trash = useMemo(() => allNotes.filter((n) => n.deleted_at).sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : -1)), [allNotes])
   const [cursors, setCursors] = useState([])
+  const [columns, setColumns] = useState([])
+  const [colsLoaded, setColsLoaded] = useState(false)
+  const [boardFrom, setBoardFrom] = useState(false)
+  const seedingCols = useRef(false)
   const [activeId, setActiveId] = useState(null)
   const [view, setView] = useState('notes')
   const [filter, setFilter] = useState({ kind: 'all' })
@@ -249,6 +254,9 @@ function Main() {
     let alive = true
     setNotes([])
     setFolders([])
+    setColumns([])
+    setColsLoaded(false)
+    seedingCols.current = false
     setAddingFolder(false)
     setActiveId(null)
     setFilter({ kind: 'all' })
@@ -259,6 +267,15 @@ function Main() {
       .listFolders(wid)
       .then((f) => alive && setFolders(f))
       .catch(() => {})
+
+    store
+      .listColumns(wid)
+      .then((c) => {
+        if (!alive) return
+        setColumns(c)
+        setColsLoaded(true)
+      })
+      .catch(() => alive && setColsLoaded(true))
 
     store
       .listNotes(wid)
@@ -294,6 +311,12 @@ function Main() {
         setNotes((ns) => ns.filter((n) => n.id !== id))
         setActiveId((a) => (a === id ? null : a))
       },
+      colAdd: (c) => setColumns((l) => (l.some((x) => x.id === c.id) ? l : [...l, { id: c.id, name: c.name, pos: c.pos }].sort((a, b) => a.pos - b.pos))),
+      colUpdate: (c) => setColumns((l) => l.map((x) => (x.id === c.id ? { id: c.id, name: c.name, pos: c.pos } : x)).sort((a, b) => a.pos - b.pos)),
+      colRemove: (id) => {
+        setColumns((l) => l.filter((x) => x.id !== id))
+        setNotes((ns) => ns.map((n) => (n.column_id === id ? { ...n, column_id: null } : n)))
+      },
       folderAdd: (f) => setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, { id: f.id, name: f.name }])),
       folderRemove: (id) => {
         setFolders((l) => l.filter((x) => x.id !== id))
@@ -324,6 +347,20 @@ function Main() {
   useEffect(() => {
     if (peers.some((p) => !members.some((m) => m.user_id === p.id))) loadMembers()
   }, [peers])
+
+  // first time the board opens: create the default lists
+  useEffect(() => {
+    if (view !== 'board' || !colsLoaded || columns.length > 0 || seedingCols.current || !wid) return
+    seedingCols.current = true
+    ;(async () => {
+      for (const [i, k] of ['colTodo', 'colDoing', 'colDone'].entries()) {
+        try {
+          const c = await store.createColumn(wid, tRef.current(k), (i + 1) * 1000)
+          setColumns((l) => (l.some((x) => x.id === c.id) ? l : [...l, c].sort((a, b) => a.pos - b.pos)))
+        } catch {}
+      }
+    })()
+  }, [view, colsLoaded, columns.length, wid])
 
   // live co-editing of the open note ------------------------------------------
   useEffect(() => {
@@ -390,6 +427,7 @@ function Main() {
   }
 
   function openNote(id) {
+    setBoardFrom(false)
     setActiveId(id)
     setView('notes')
     closeSide()
@@ -399,6 +437,53 @@ function Main() {
     const found = notes.find((n) => norm(n.title) === norm(title))
     if (found) openNote(found.id)
     else newNote({ title })
+  }
+
+  const nextPos = (colId) => Math.max(0, ...notes.filter((n) => n.column_id === colId).map((n) => n.pos || 0)) + 1000
+
+  async function addColumn(name) {
+    try {
+      const c = await store.createColumn(wid, name, Math.max(0, ...columns.map((x) => x.pos)) + 1000)
+      setColumns((l) => (l.some((x) => x.id === c.id) ? l : [...l, c].sort((a, b) => a.pos - b.pos)))
+    } catch {
+      flash('error')
+    }
+  }
+  function renameColumn(id, name) {
+    setColumns((l) => l.map((c) => (c.id === id ? { ...c, name } : c)))
+    store.updateColumn(id, { name }).catch(() => flash('error'))
+  }
+  function moveColumn(id, pos) {
+    setColumns((l) => l.map((c) => (c.id === id ? { ...c, pos } : c)).sort((a, b) => a.pos - b.pos))
+    store.updateColumn(id, { pos }).catch(() => flash('error'))
+  }
+  async function deleteColumn(id) {
+    if (!window.confirm(t('deleteColumnConfirm'))) return
+    try {
+      await store.deleteColumn(id)
+      setColumns((l) => l.filter((c) => c.id !== id))
+      setNotes((ns) => ns.map((n) => (n.column_id === id ? { ...n, column_id: null } : n)))
+    } catch {
+      flash('error')
+    }
+  }
+  async function addCard(colId, title) {
+    try {
+      const n = await store.createNote(wid, { title, column_id: colId || null, pos: colId ? nextPos(colId) : 0 })
+      setNotes((ns) => [n, ...ns.filter((x) => x.id !== n.id)])
+    } catch {
+      flash('error')
+    }
+  }
+  function openCard(id) {
+    setBoardFrom(true)
+    setActiveId(id)
+    setView('notes')
+    closeSide()
+  }
+  function setCard(patch) {
+    if ('column_id' in patch) patch = { ...patch, pos: patch.column_id ? nextPos(patch.column_id) : 0 }
+    edit(activeNote.id, patch, true)
   }
 
   function removeNote(id) {
@@ -539,7 +624,7 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
       <div className="scrim" onClick={() => closeSide()} />
 
       <aside className="side">
@@ -683,6 +768,16 @@ function Main() {
             <Icon name="graph" size={16} /> {t('graph')}
           </button>
           <button
+            className={view === 'board' ? 'on' : ''}
+            onClick={() => {
+              setView('board')
+              setActiveId(null)
+              closeSide()
+            }}
+          >
+            <Icon name="board" size={16} /> {t('board')}
+          </button>
+          <button
             className={view === 'trash' ? 'on' : ''}
             onClick={() => {
               setView('trash')
@@ -774,7 +869,28 @@ function Main() {
       </section>
 
       <main className="main">
-        {view === 'trash' ? (
+        {view === 'board' ? (
+          <Board
+            notes={notes}
+            columns={columns}
+            members={members}
+            onOpen={openCard}
+            onMove={(id, patch) => edit(id, patch, true)}
+            onAdd={addCard}
+            onAddColumn={addColumn}
+            onRenameColumn={renameColumn}
+            onDeleteColumn={deleteColumn}
+            onMoveColumn={moveColumn}
+            header={
+              <header className="ed-bar">
+                <button className="icon-btn only-mid" onClick={() => setSideOpen(true)} title={t('menu')}>
+                  <Icon name="menu" />
+                </button>
+                <strong className="graph-title">{t('board')}</strong>
+              </header>
+            }
+          />
+        ) : view === 'trash' ? (
           <div className="trash-wrap">
             <header className="ed-bar">
               <button className="icon-btn only-mid" onClick={() => setSideOpen(true)} title={t('menu')}>
@@ -850,7 +966,11 @@ function Main() {
             onImages={(arr) => edit(activeNote.id, { images: arr }, true)}
             folders={folders}
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
-            onBack={() => setActiveId(null)}
+            columns={columns}
+            members={members}
+            onCard={setCard}
+            boardBack={boardFrom ? () => { setView('board'); setActiveId(null); setBoardFrom(false) } : null}
+            onBack={() => (boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null))}
           />
         ) : (
           <div className="blank">
