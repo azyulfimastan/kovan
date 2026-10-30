@@ -77,7 +77,10 @@ function Main() {
 
   const [workspaces, setWorkspaces] = useState([])
   const [wid, setWid] = useState(null)
-  const [notes, setNotes] = useState([])
+  const [allNotes, setNotes] = useState([])
+  const notes = useMemo(() => allNotes.filter((n) => !n.deleted_at), [allNotes])
+  const trash = useMemo(() => allNotes.filter((n) => n.deleted_at).sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : -1)), [allNotes])
+  const [cursors, setCursors] = useState([])
   const [activeId, setActiveId] = useState(null)
   const [view, setView] = useState('notes')
   const [filter, setFilter] = useState({ kind: 'all' })
@@ -123,7 +126,7 @@ function Main() {
     setTimeout(() => setToast(''), 2600)
   }, [])
 
-  notesRef.current = notes
+  notesRef.current = allNotes
   activeIdRef.current = activeId
 
   // theme
@@ -270,7 +273,8 @@ function Main() {
           } catch {}
         }
         if (!alive) return
-        setNotes(list)
+        store.purgeTrash?.(wid)?.catch?.(() => {})
+        setNotes(list.filter((n) => !(n.deleted_at && Date.now() - new Date(n.deleted_at).getTime() > 30 * 864e5)))
         lsSet('kovan.ws', wid)
       })
       .catch(() => alive && flash('error'))
@@ -330,6 +334,7 @@ function Main() {
     const live = openLive(id, user, { title: n.title, body: n.body }, {
       onText: ({ title, body }) =>
         setNotes((ns) => ns.map((x) => (x.id === id && (x.title !== title || x.body !== body) ? { ...x, title, body } : x))),
+      onCursors: setCursors,
       onTyping: (name) => {
         setTyping(name || '…')
         clearTimeout(typingT.current)
@@ -341,6 +346,7 @@ function Main() {
       live.destroy()
       if (liveRef.current === live) liveRef.current = null
       setTyping('')
+      setCursors([])
     }
   }, [activeId, user?.id, view])
 
@@ -395,18 +401,28 @@ function Main() {
     else newNote({ title })
   }
 
-  async function removeNote(id) {
-    if (!window.confirm(t('deleteConfirm'))) return
-    clearTimeout(timers.current[id])
-    delete pending.current[id]
-    dirty.current.delete(id)
+  function removeNote(id) {
+    setActiveId(null)
+    edit(id, { deleted_at: new Date().toISOString() }, true)
+    flash('movedToTrash')
+  }
+
+  function restoreNote(id) {
+    edit(id, { deleted_at: null }, true)
+  }
+
+  async function purgeNote(id) {
     try {
       await store.deleteNote(id)
       setNotes((ns) => ns.filter((n) => n.id !== id))
-      setActiveId(null)
     } catch {
       flash('error')
     }
+  }
+
+  async function emptyTrash() {
+    if (!window.confirm(t('emptyTrashConfirm'))) return
+    for (const n of trash) await purgeNote(n.id)
   }
 
   async function createWorkspace(e) {
@@ -523,7 +539,7 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
       <div className="scrim" onClick={() => closeSide()} />
 
       <aside className="side">
@@ -666,6 +682,16 @@ function Main() {
           >
             <Icon name="graph" size={16} /> {t('graph')}
           </button>
+          <button
+            className={view === 'trash' ? 'on' : ''}
+            onClick={() => {
+              setView('trash')
+              setActiveId(null)
+              closeSide()
+            }}
+          >
+            <Icon name="trash" size={16} /> {t('trash')} {trash.length > 0 && <em>{trash.length}</em>}
+          </button>
         </nav>
 
         <div className="side-foot">
@@ -748,7 +774,51 @@ function Main() {
       </section>
 
       <main className="main">
-        {view === 'graph' ? (
+        {view === 'trash' ? (
+          <div className="trash-wrap">
+            <header className="ed-bar">
+              <button className="icon-btn only-mid" onClick={() => setSideOpen(true)} title={t('menu')}>
+                <Icon name="menu" />
+              </button>
+              <strong className="graph-title">{t('trash')}</strong>
+              <span className="grow" />
+              {trash.length > 0 && (
+                <button className="btn danger small" onClick={emptyTrash}>
+                  {t('emptyTrash')}
+                </button>
+              )}
+            </header>
+            <p className="muted trash-hint">{t('trashHint')}</p>
+            {trash.length === 0 ? (
+              <div className="blank">
+                <div className="blank-hex">
+                  <HexLogo size={56} />
+                </div>
+                <p>{t('trashEmpty')}</p>
+              </div>
+            ) : (
+              <ul className="trash-list">
+                {trash.map((n) => (
+                  <li key={n.id}>
+                    <div className="t-info">
+                      <strong>{n.title || t('untitled')}</strong>
+                      <span className="muted">{snippet(n.body) || ' '}</span>
+                    </div>
+                    <button className="btn small" onClick={() => restoreNote(n.id)}>
+                      {t('restore')}
+                    </button>
+                    <button
+                      className="btn danger small"
+                      onClick={() => window.confirm(t('deleteForeverConfirm')) && purgeNote(n.id)}
+                    >
+                      {t('deleteForever')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : view === 'graph' ? (
           <div className="graph-wrap">
             <header className="ed-bar">
               <button className="icon-btn only-mid" onClick={() => setSideOpen(true)} title={t('menu')}>
@@ -774,6 +844,8 @@ function Main() {
             onOpenTitle={openTitle}
             onOpenNote={openNote}
             typing={typing}
+            cursors={cursors}
+            onCursor={(i) => liveRef.current?.cursor(i)}
             onUpload={uploadImage}
             onImages={(arr) => edit(activeNote.id, { images: arr }, true)}
             folders={folders}

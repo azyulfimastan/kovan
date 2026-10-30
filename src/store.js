@@ -105,6 +105,10 @@ export const cloudStore = {
   async deleteNote(id) {
     ok(await sb.from('notes').delete().eq('id', id))
   },
+  async purgeTrash(wid) {
+    const old = new Date(Date.now() - 30 * 864e5).toISOString()
+    await sb.from('notes').delete().eq('workspace_id', wid).lt('deleted_at', old)
+  },
 
   subscribe(wid, h) {
     const f = `workspace_id=eq.${wid}`
@@ -266,6 +270,12 @@ export const localStore = {
   async deleteNote(id) {
     const d = load()
     d.notes = d.notes.filter((x) => x.id !== id)
+    save(d)
+  },
+  async purgeTrash() {
+    const d = load()
+    const old = Date.now() - 30 * 864e5
+    d.notes = d.notes.filter((x) => !(x.deleted_at && new Date(x.deleted_at).getTime() < old))
     save(d)
   },
   subscribe() {

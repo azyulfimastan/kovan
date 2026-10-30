@@ -17,6 +17,9 @@ function hash32(str) {
   return (h >>> 0) || 1
 }
 
+const COLORS = ['#e0556b', '#3b8de0', '#2fa66a', '#8a63d2', '#d9822b', '#17a2b8', '#c2478f', '#7a8a2c']
+const colorOf = (id) => COLORS[hash32(String(id)) % COLORS.length]
+
 // Replace the text of a Y.Text with `next` using the smallest edit.
 function setText(doc, yt, next) {
   const cur = yt.toString()
@@ -36,7 +39,7 @@ function setText(doc, yt, next) {
  * Live co-editing of one note (CRDT over a Supabase broadcast channel).
  * Every keystroke is shared instantly; concurrent edits merge instead of overwriting.
  */
-export function openLive(noteId, user, initial, { onText, onTyping }) {
+export function openLive(noteId, user, initial, { onText, onTyping, onCursors }) {
   const doc = new Y.Doc()
   const yTitle = doc.getText('title')
   const yBody = doc.getText('body')
@@ -45,6 +48,9 @@ export function openLive(noteId, user, initial, { onText, onTyping }) {
   let pending = null // local edits made before the first sync
   let queue = []
   let flushT = null
+  const cursors = new Map() // peer id -> { name, color, pos, ts }
+  let lastIdx = null
+  let curT = null
 
   const ch = store.liveChannel(noteId, {
     upd: ({ u, name }) => {
@@ -55,14 +61,47 @@ export function openLive(noteId, user, initial, { onText, onTyping }) {
       if (!synced) return
       ch.send('sync-res', { u: toB64(Y.encodeStateAsUpdate(doc, fromB64(sv))) })
     },
+    cur: ({ id, name, s: rel }) => {
+      try {
+        cursors.set(id, { name, color: colorOf(id), pos: Y.decodeRelativePosition(fromB64(rel)), ts: Date.now() })
+        emitCursors()
+      } catch {}
+    },
+    bye: ({ id }) => {
+      cursors.delete(id)
+      emitCursors()
+    },
     'sync-res': ({ u }) => {
       Y.applyUpdate(doc, fromB64(u), 'remote')
       finishSync(false)
     },
   })
 
+  function cursorList() {
+    const now = Date.now()
+    const out = []
+    for (const [id, c] of cursors) {
+      if (now - c.ts > 12000) {
+        cursors.delete(id)
+        continue
+      }
+      const abs = Y.createAbsolutePositionFromRelativePosition(c.pos, doc)
+      if (abs && abs.type === yBody) out.push({ id, name: c.name, color: c.color, idx: abs.index })
+    }
+    return out
+  }
+  function emitCursors() {
+    if (!dead) onCursors?.(cursorList())
+  }
+  function sendCursor() {
+    if (lastIdx == null || !synced || dead) return
+    const rel = Y.createRelativePositionFromTypeIndex(yBody, Math.min(lastIdx, yBody.length))
+    ch.send('cur', { id: user.id, name: user.name || user.email || '', s: toB64(Y.encodeRelativePosition(rel)) })
+  }
+
   function emit() {
     if (!dead) onText({ title: yTitle.toString(), body: yBody.toString() })
+    emitCursors()
   }
 
   function finishSync(seed) {
@@ -102,10 +141,19 @@ export function openLive(noteId, user, initial, { onText, onTyping }) {
   yBody.observe(onObs)
 
   const timer = setTimeout(() => finishSync(true), 700)
+  const beat = setInterval(() => {
+    sendCursor()
+    emitCursors()
+  }, 5000)
   ch.ready(() => ch.send('sync-req', { sv: toB64(Y.encodeStateVector(doc)) }))
 
   return {
     id: noteId,
+    cursor(idx) {
+      lastIdx = idx
+      clearTimeout(curT)
+      curT = setTimeout(sendCursor, 80)
+    },
     set(patch) {
       if (dead) return
       if (!synced) {
@@ -114,10 +162,14 @@ export function openLive(noteId, user, initial, { onText, onTyping }) {
       }
       if ('title' in patch) setText(doc, yTitle, patch.title)
       if ('body' in patch) setText(doc, yBody, patch.body)
+      emitCursors()
     },
     destroy() {
+      ch.send('bye', { id: user.id })
       dead = true
       clearTimeout(timer)
+      clearTimeout(curT)
+      clearInterval(beat)
       clearTimeout(flushT)
       ch.close()
       doc.destroy()

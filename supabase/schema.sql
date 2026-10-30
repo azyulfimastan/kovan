@@ -343,3 +343,5 @@ end;
 $$;
 
 alter table public.notes add column if not exists images text[] not null default '{}';
+
+alter table public.notes add column if not exists deleted_at timestamptz;

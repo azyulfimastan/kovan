@@ -26,6 +26,23 @@ function detect(value, pos) {
   return null
 }
 
+// Pixel position of a character index inside a textarea (mirror-div technique).
+function caretXY(ta, idx) {
+  const cs = getComputedStyle(ta)
+  const d = document.createElement('div')
+  for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'tabSize', 'textIndent']) d.style[k] = cs[k]
+  d.style.cssText += ';position:absolute;visibility:hidden;top:0;left:0;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;border-style:solid;border-color:transparent;'
+  d.style.width = ta.offsetWidth + 'px'
+  d.textContent = ta.value.slice(0, idx)
+  const m = document.createElement('span')
+  m.textContent = '\u200b'
+  d.appendChild(m)
+  document.body.appendChild(d)
+  const r = { x: m.offsetLeft, y: m.offsetTop, h: parseFloat(cs.lineHeight) || 24 }
+  d.remove()
+  return r
+}
+
 export default function Editor({
   note,
   notes,
@@ -42,6 +59,8 @@ export default function Editor({
   typing = '',
   onUpload,
   onImages,
+  cursors = [],
+  onCursor,
   folders = [],
   onFolder,
   onBack,
@@ -101,6 +120,73 @@ export default function Editor({
   const selMemo = useRef({ s: 0, e: 0 })
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [kbBottom, setKbBottom] = useState(0)
+  const [touch, setTouch] = useState(() => window.matchMedia?.('(pointer: coarse), (max-width: 720px)').matches)
+  const [carets, setCarets] = useState([])
+
+  useEffect(() => {
+    const mq = window.matchMedia?.('(pointer: coarse), (max-width: 720px)')
+    const f = () => setTouch(!!mq?.matches)
+    mq?.addEventListener?.('change', f)
+    return () => mq?.removeEventListener?.('change', f)
+  }, [])
+
+  // keep the toolbar glued above the on-screen keyboard
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const f = () => setKbBottom(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))
+    f()
+    vv.addEventListener('resize', f)
+    vv.addEventListener('scroll', f)
+    return () => {
+      vv.removeEventListener('resize', f)
+      vv.removeEventListener('scroll', f)
+    }
+  }, [])
+
+  // friends' cursors
+  useLayoutEffect(() => {
+    const ta = taRef.current
+    if (mode !== 'edit' || !ta || cursors.length === 0) return setCarets([])
+    const calc = () => setCarets(cursors.map((c) => ({ ...c, ...caretXY(ta, Math.min(c.idx, ta.value.length)) })))
+    calc()
+    window.addEventListener('resize', calc)
+    return () => window.removeEventListener('resize', calc)
+  }, [cursors, note.body, mode])
+
+  // formatting toolbar actions
+  function wrapSel(before, after = before) {
+    const ta = taRef.current
+    if (!ta) return
+    const v = note.body
+    const a = ta.selectionStart
+    const b = ta.selectionEnd
+    const sel = v.slice(a, b) || ''
+    const next = v.slice(0, a) + before + sel + after + v.slice(b)
+    setBody(next, sel ? a + before.length + sel.length + after.length : a + before.length)
+  }
+  function linePrefix(prefix) {
+    const ta = taRef.current
+    if (!ta) return
+    const v = note.body
+    const a = ta.selectionStart
+    const ls = v.lastIndexOf('\n', a - 1) + 1
+    const has = v.startsWith(prefix, ls)
+    const next = has ? v.slice(0, ls) + v.slice(ls + prefix.length) : v.slice(0, ls) + prefix + v.slice(ls)
+    setBody(next, a + (has ? -prefix.length : prefix.length))
+  }
+  const TB = [
+    { k: 'tbBold', label: 'B', cls: 'b', run: () => wrapSel('**') },
+    { k: 'tbItalic', label: 'I', cls: 'i', run: () => wrapSel('*') },
+    { k: 'tbHeading', label: 'H', run: () => linePrefix('## ') },
+    { k: 'tbList', label: '•', run: () => linePrefix('- ') },
+    { k: 'tbTodo', label: '☐', run: () => linePrefix('- [ ] ') },
+    { k: 'tbNumber', label: '1.', run: () => linePrefix('1. ') },
+    { k: 'tbQuote', label: '❝', run: () => linePrefix('> ') },
+    { k: 'tbLink', label: '[[ ]]', run: () => wrapSel('[[', ']]') },
+  ]
 
   // a change that did not come from this keyboard (a friend typing): keep my cursor where it was
   useLayoutEffect(() => {
@@ -159,6 +245,7 @@ export default function Editor({
     const v = e.target.value
     expectBody.current = v
     selMemo.current = { s: e.target.selectionStart, e: e.target.selectionEnd }
+    onCursor?.(e.target.selectionStart)
     onChange({ body: v })
     setPop(detect(v, e.target.selectionStart))
     setIdx(0)
@@ -317,6 +404,7 @@ export default function Editor({
           />
 
           {mode === 'edit' ? (
+            <div className="ed-wrap">
             <textarea
               ref={taRef}
               className="ed-body"
@@ -324,7 +412,11 @@ export default function Editor({
               placeholder={t('bodyPlaceholder')}
               onChange={onInput}
               onKeyDown={onKeyDown}
-              onSelect={(e) => (selMemo.current = { s: e.target.selectionStart, e: e.target.selectionEnd })}
+              onSelect={(e) => {
+                selMemo.current = { s: e.target.selectionStart, e: e.target.selectionEnd }
+                onCursor?.(e.target.selectionStart)
+              }}
+              onFocus={() => setFocused(true)}
               onPaste={(e) => {
                 const fs = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'))
                 if (fs.length) {
@@ -339,9 +431,20 @@ export default function Editor({
                   addImages(fs)
                 }
               }}
-              onBlur={() => setTimeout(() => setPop(null), 150)}
+              onBlur={() => {
+                setTimeout(() => setPop(null), 150)
+                setTimeout(() => setFocused(false), 200)
+              }}
               spellCheck
             />
+              <div className="peer-carets" aria-hidden="true">
+                {carets.map((c) => (
+                  <span key={c.id} className="peer-caret" style={{ left: c.x, top: c.y, height: c.h, background: c.color }}>
+                    <em style={{ background: c.color }}>{(c.name || '?').split(' ')[0]}</em>
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="prose" onClick={onPreviewClick} dangerouslySetInnerHTML={{ __html: html || '<p class="muted">…</p>' }} />
           )}
@@ -401,6 +504,21 @@ export default function Editor({
           </section>
         </div>
       </div>
+
+      {touch && focused && mode === 'edit' && (
+        <div className="kb-bar" style={{ bottom: kbBottom }} onPointerDown={(e) => e.preventDefault()}>
+          {TB.map((b) => (
+            <button key={b.k} className={b.cls} title={t(b.k)} onClick={b.run}>
+              {b.label}
+            </button>
+          ))}
+          {onUpload && (
+            <button title={t('addImage')} onClick={() => fileRef.current?.click()}>
+              <Icon name="image" size={18} />
+            </button>
+          )}
+        </div>
+      )}
 
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(null)}>
