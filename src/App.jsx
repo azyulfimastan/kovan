@@ -924,6 +924,21 @@ function Main() {
           <Icon name="search" size={15} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchNotes')} />
         </div>
+        {view === 'notes' && !query && (
+          <div className="folder-chips">
+            <button className={filter.kind === 'all' ? 'on' : ''} onClick={() => setFilter({ kind: 'all' })}>
+              {t('allNotes')}
+            </button>
+            {folders.map((f) => (
+              <button key={f.id} className={filter.kind === 'folder' && filter.id === f.id ? 'on' : ''} onClick={() => setFilter({ kind: 'folder', id: f.id })}>
+                <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
+              </button>
+            ))}
+            <button className="add" onClick={() => { setSideOpen(true); setAddingFolder(true) }} title={t('newFolder')}>
+              <Icon name="plus" size={14} /> {t('newFolder')}
+            </button>
+          </div>
+        )}
         <ul className="cards">
           {visible.length === 0 && (
             <li className="empty-list">

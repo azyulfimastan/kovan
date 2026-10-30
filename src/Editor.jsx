@@ -348,16 +348,6 @@ export default function Editor({
         )}
         <span className="grow" />
         {typing && <span className="typing">✎ {t('typing', { name: typing })}</span>}
-        {(
-          <select className="ed-folder" value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
-            <option value="">{t('noFolder')}</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        )}
         <span className={`save ${saveState}`}>{saveState === 'saving' ? t('saving') : t('saved')}</span>
         {onUpload && (
           <>
@@ -407,6 +397,19 @@ export default function Editor({
               }
             }}
           />
+
+          <label className="folder-chip">
+            <Icon name="folder" size={15} />
+            <select value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
+              <option value="">{t('noFolder')}</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <Icon name="chevron" size={13} />
+          </label>
 
           {mode === 'edit' ? (
             <div className="ed-wrap">

@@ -1435,3 +1435,12 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 @keyframes sheet { from { transform: translateY(40px); opacity: 0; } }
 @media (max-width: 720px) { .ed-bar > .only-narrow { display: none !important; } }
 @media (max-width: 720px) { .pin-side { display: none !important; } }
+
+.folder-chips { display: flex; gap: 8px; padding: 0 14px 10px; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; }
+.folder-chips::-webkit-scrollbar { display: none; }
+.folder-chips button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.folder-chips button.on { background: var(--honey); border-color: var(--honey); color: var(--on-accent); }
+.folder-chips button.add { color: var(--muted); border-style: dashed; }
+.folder-chips .f-dot { cursor: inherit; }
+.folder-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 6px; padding: 6px 12px; border-radius: 999px; background: var(--honey-soft); color: var(--ink); font-size: 14px; font-weight: 600; }
+.folder-chip select { appearance: none; background: none; border: 0; color: inherit; font: inherit; max-width: 60vw; padding-right: 2px; text-overflow: ellipsis; }
