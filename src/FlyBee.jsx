@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-const N = 16 // bees added per tap
-const MAX = 400
+const N = 80 // bees added per tap
+const MAX = 600
 const rnd = (a, b) => a + Math.random() * (b - a)
+
+// Lightweight bee for the swarm (no gradients/clip paths/ids, so hundreds stay smooth).
+const MiniBee = () => (
+  <svg width="24" height="19" viewBox="0 0 64 51" aria-hidden="true">
+    <ellipse cx="26" cy="13" rx="9" ry="13" fill="#fff" fillOpacity=".8" stroke="#2a1d08" strokeOpacity=".5" strokeWidth="2" transform="rotate(-20 26 13)" />
+    <ellipse cx="28" cy="32" rx="19" ry="13" fill="#f2b632" stroke="#2a1d08" strokeWidth="3" />
+    <path d="M19 20v24M30 19v26" stroke="#2a1d08" strokeWidth="6" strokeLinecap="round" />
+    <circle cx="52" cy="30" r="9" fill="#2a1d08" />
+  </svg>
+)
 
 // One bee wanders around the screen. Touch it: for 5 seconds a nervous swarm erupts from it.
 export default function FlyBee() {
@@ -73,10 +83,10 @@ export default function FlyBee() {
     return () => cancelAnimationFrame(raf)
   }, [ok])
 
-  function burst() {
+  function burst(from) {
     const s = st.current
     if (!s.main) return
-    const m = s.main
+    const m = from || s.main
     const add = Array.from({ length: Math.min(N, MAX - s.bees.length) }, () => {
       const a = rnd(0, Math.PI * 2), v = rnd(300, 800)
       return { x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, max: rnd(500, 950), face: 1 }
@@ -91,12 +101,12 @@ export default function FlyBee() {
   if (!ok) return null
   return (
     <>
-      <div className="fly-bee main" ref={mainEl} onClick={burst} role="button" aria-label="bee">
+      <div className="fly-bee main" ref={mainEl} onClick={() => burst()} role="button" aria-label="bee">
         <Bee size={34} />
       </div>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
-          <Bee size={24} />
+        <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)} onClick={() => burst(st.current.bees[i])}>
+          <MiniBee />
         </div>
       ))}
     </>
