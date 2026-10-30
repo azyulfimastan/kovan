@@ -1444,3 +1444,14 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .folder-chips .f-dot { cursor: inherit; }
 .folder-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 6px; padding: 6px 12px; border-radius: 999px; background: var(--honey-soft); color: var(--ink); font-size: 14px; font-weight: 600; }
 .folder-chip select { appearance: none; background: none; border: 0; color: inherit; font: inherit; max-width: 60vw; padding-right: 2px; text-overflow: ellipsis; }
+
+.list-title { position: relative; }
+.title-btn { display: inline-flex; align-items: center; gap: 4px; color: inherit; }
+.title-btn svg { color: var(--muted); }
+.menu-scrim { position: fixed; inset: 0; z-index: 44; }
+.folder-menu { position: absolute; z-index: 45; top: calc(100% + 6px); left: 0; min-width: 230px; max-height: 60vh; overflow-y: auto; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); animation: sheet 0.15s ease; }
+.folder-menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--ink); }
+.folder-menu button:hover { background: var(--honey-soft); }
+.folder-menu button.on { background: var(--honey-soft); color: var(--honey-strong); }
+.folder-menu button.add { color: var(--muted); }
+.folder-menu .f-dot { cursor: inherit; }

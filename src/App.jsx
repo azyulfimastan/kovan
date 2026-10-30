@@ -79,6 +79,7 @@ function Main() {
   const [theme, setTheme] = useState(initialTheme)
   const [folders, setFolders] = useState([])
   const [addingFolder, setAddingFolder] = useState(false)
+  const [folderMenu, setFolderMenu] = useState(false)
   const [folderName, setFolderName] = useState('')
   const [newWsInvite, setNewWsInvite] = useState(true)
   const [user, setUser] = useState(undefined) // undefined = checking, null = signed out
@@ -904,8 +905,30 @@ function Main() {
             <Icon name="menu" />
           </button>
           <div className="list-title">
-            <h2>{heading}</h2>
+            <button className="title-btn" onClick={() => setFolderMenu((v) => !v)}>
+              <h2>{heading}</h2>
+              <Icon name="chevron" size={18} />
+            </button>
             <span className="muted">{visible.length}</span>
+            {folderMenu && (
+              <>
+                <div className="menu-scrim" onClick={() => setFolderMenu(false)} />
+                <div className="folder-menu">
+                  {[{ id: null, name: t('allNotes'), kind: 'all' }, ...folders.map((f) => ({ ...f, kind: 'folder' }))].map((f) => (
+                    <button
+                      key={f.id || 'all'}
+                      className={(f.kind === 'all' ? filter.kind === 'all' : filter.kind === 'folder' && filter.id === f.id) ? 'on' : ''}
+                      onClick={() => { setFilter(f.kind === 'all' ? { kind: 'all' } : { kind: 'folder', id: f.id }); setView('notes'); setFolderMenu(false) }}
+                    >
+                      {f.kind === 'folder' ? <span className="f-dot" style={{ background: folderColor(f) }} /> : <Icon name="notes" size={15} />} {f.name}
+                    </button>
+                  ))}
+                  <button className="add" onClick={() => { setFolderMenu(false); setSideOpen(true); setAddingFolder(true) }}>
+                    <Icon name="plus" size={14} /> {t('newFolder')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           {others.length > 0 && (
             <div className="peers" title={t('online', { n: String(others.length + 1) })}>
@@ -924,21 +947,6 @@ function Main() {
           <Icon name="search" size={15} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchNotes')} />
         </div>
-        {view === 'notes' && !query && (
-          <div className="folder-chips">
-            <button className={filter.kind === 'all' ? 'on' : ''} onClick={() => setFilter({ kind: 'all' })}>
-              {t('allNotes')}
-            </button>
-            {folders.map((f) => (
-              <button key={f.id} className={filter.kind === 'folder' && filter.id === f.id ? 'on' : ''} onClick={() => setFilter({ kind: 'folder', id: f.id })}>
-                <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
-              </button>
-            ))}
-            <button className="add" onClick={() => { setSideOpen(true); setAddingFolder(true) }} title={t('newFolder')}>
-              <Icon name="plus" size={14} /> {t('newFolder')}
-            </button>
-          </div>
-        )}
         <ul className="cards">
           {visible.length === 0 && (
             <li className="empty-list">
