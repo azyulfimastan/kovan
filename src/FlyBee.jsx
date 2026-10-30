@@ -1,46 +1,98 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-// A little bee that chases the mouse, circles it when it stops, and wanders when the mouse rests.
+const N = 16
+const rnd = (a, b) => a + Math.random() * (b - a)
+
+// One bee wanders around the screen. Touch it: for 5 seconds a nervous swarm erupts from it.
 export default function FlyBee() {
-  const box = useRef(null)
+  const mainEl = useRef(null)
+  const swarmEls = useRef([])
+  const [swarm, setSwarm] = useState(0) // run id, 0 = none
+  const st = useRef({ active: false, bees: [], until: 0, main: null })
+  const [ok] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+
   useEffect(() => {
-    const mq = window.matchMedia?.('(hover: hover) and (pointer: fine)')
-    if (!mq?.matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const el = box.current
-    const m = { x: innerWidth * 0.6, y: innerHeight * 0.4, t: performance.now() }
-    const b = { x: m.x - 120, y: m.y - 80, vx: 0, vy: 0, face: 1 }
-    const onMove = (e) => { m.x = e.clientX; m.y = e.clientY; m.t = performance.now() }
-    window.addEventListener('mousemove', onMove, { passive: true })
+    if (!ok) return
+    const W = () => innerWidth, H = () => innerHeight
+    const m = { x: rnd(80, W() - 80), y: rnd(80, H() - 80), vx: 0, vy: 0, tx: 0, ty: 0, next: 0, face: 1 }
+    st.current.main = m
     let raf, last = performance.now()
+    const pick = (now) => {
+      m.tx = rnd(40, W() - 60)
+      m.ty = rnd(70, H() - 90)
+      m.next = now + rnd(1800, 4200)
+    }
+    pick(last)
     const tick = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
-      const idle = (now - m.t) / 1000
-      // target: near the cursor, orbiting loosely; drifting wider after the mouse rests
-      const r = idle < 1.5 ? 46 : Math.min(150, 46 + (idle - 1.5) * 30)
-      const a = now / (idle < 1.5 ? 420 : 900)
-      const tx = m.x + Math.cos(a) * r + Math.sin(now / 1300) * 18
-      const ty = m.y + Math.sin(a * 1.3) * r * 0.7 - 24
-      const k = idle < 1.5 ? 38 : 14
-      b.vx += (tx - b.x) * k * dt
-      b.vy += (ty - b.y) * k * dt
-      const damp = Math.exp(-6 * dt)
-      b.vx *= damp
-      b.vy *= damp
-      b.x += b.vx * dt
-      b.y += b.vy * dt
-      if (Math.abs(b.vx) > 25) b.face = b.vx > 0 ? 1 : -1
-      const tilt = Math.max(-18, Math.min(18, b.vy * 0.04))
-      el.style.transform = `translate(${b.x - 17}px, ${b.y - 14}px) scaleX(${b.face}) rotate(${tilt * b.face}deg)`
+      if (now > m.next) pick(now)
+      m.vx += ((m.tx - m.x) * 1.6 + Math.sin(now / 370) * 60) * dt
+      m.vy += ((m.ty - m.y) * 1.6 + Math.cos(now / 290) * 60) * dt
+      const damp = Math.exp(-1.8 * dt)
+      m.vx *= damp; m.vy *= damp
+      m.x += m.vx * dt; m.y += m.vy * dt
+      if (Math.abs(m.vx) > 14) m.face = m.vx > 0 ? 1 : -1
+      if (mainEl.current) mainEl.current.style.transform = `translate(${m.x - 17}px, ${m.y - 14}px) scaleX(${m.face}) rotate(${Math.max(-14, Math.min(14, m.vy * 0.05)) * m.face}deg)`
+      const s = st.current
+      if (s.active) {
+        const left = s.until - now
+        s.bees.forEach((b, i) => {
+          const el = swarmEls.current[i]
+          if (!el) return
+          // nervous: constant random kicks, high speed, bounce off the edges
+          b.vx += rnd(-1, 1) * 2600 * dt
+          b.vy += rnd(-1, 1) * 2600 * dt
+          const sp = Math.hypot(b.vx, b.vy)
+          if (sp > b.max) { b.vx *= b.max / sp; b.vy *= b.max / sp }
+          b.x += b.vx * dt; b.y += b.vy * dt
+          if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) }
+          if (b.x > W() - 30) { b.x = W() - 30; b.vx = -Math.abs(b.vx) }
+          if (b.y < 10) { b.y = 10; b.vy = Math.abs(b.vy) }
+          if (b.y > H() - 30) { b.y = H() - 30; b.vy = -Math.abs(b.vy) }
+          if (Math.abs(b.vx) > 40) b.face = b.vx > 0 ? 1 : -1
+          const wob = Math.sin(now / 40 + i) * 8
+          el.style.transform = `translate(${b.x - 12}px, ${b.y - 10}px) scaleX(${b.face}) rotate(${Math.max(-40, Math.min(40, b.vy * 0.08)) * b.face + wob}deg)`
+          el.style.opacity = left < 600 ? String(Math.max(0, left / 600)) : '1'
+        })
+        if (left <= 0) {
+          s.active = false
+          setSwarm(0)
+        }
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('mousemove', onMove) }
-  }, [])
+    return () => cancelAnimationFrame(raf)
+  }, [ok])
+
+  function burst() {
+    const s = st.current
+    if (s.active || !s.main) return
+    const m = s.main
+    s.bees = Array.from({ length: N }, () => {
+      const a = rnd(0, Math.PI * 2), v = rnd(300, 800)
+      return { x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, max: rnd(500, 950), face: 1 }
+    })
+    s.until = performance.now() + 5000
+    s.active = true
+    setSwarm((n) => n + 1)
+    navigator.vibrate?.(30)
+  }
+
+  if (!ok) return null
   return (
-    <div className="fly-bee" ref={box} aria-hidden="true">
-      <Bee size={34} />
-    </div>
+    <>
+      <div className="fly-bee main" ref={mainEl} onClick={burst} role="button" aria-label="bee">
+        <Bee size={34} />
+      </div>
+      {swarm > 0 &&
+        Array.from({ length: N }, (_, i) => (
+          <div key={swarm + ':' + i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
+            <Bee size={24} />
+          </div>
+        ))}
+    </>
   )
 }

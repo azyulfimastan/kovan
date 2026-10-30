@@ -4,7 +4,6 @@ import { I18n, LANGS, detectLang, makeT, useI18n } from './i18n'
 import { extractLinks, norm, snippet } from './lib/md'
 import { Bee, HexLogo, Icon } from './icons'
 const Editor = lazy(() => import('./Editor'))
-import Graph from './Graph'
 import Board from './Board'
 import Palette from './Palette'
 import ShareDialog from './ShareDialog'
@@ -848,7 +847,7 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
 
       {!sidePinned && drag && (
@@ -1046,15 +1045,6 @@ function Main() {
             }}
           >
             <Icon name="pin" size={16} /> {t('pinned')} <em>{notes.filter((n) => n.pinned).length}</em>
-          </button>
-          <button
-            className={view === 'graph' ? 'on' : ''}
-            onClick={() => {
-              setView('graph')
-              closeSide()
-            }}
-          >
-            <Icon name="graph" size={16} /> {t('graph')}
           </button>
           <button
             className={view === 'board' ? 'on' : ''}
@@ -1297,16 +1287,6 @@ function Main() {
                 ))}
               </ul>
             )}
-          </div>
-        ) : view === 'graph' ? (
-          <div className="graph-wrap">
-            <header className="ed-bar">
-              <button className="icon-btn only-mid" onClick={() => setSideOpen(true)} title={t('menu')}>
-                <Icon name="menu" />
-              </button>
-              <strong className="graph-title">{t('graph')}</strong>
-            </header>
-            <Graph notes={notes} activeId={activeId} onOpen={openNote} />
           </div>
         ) : activeNote ? (
           <Suspense fallback={<div className="editor" />}>

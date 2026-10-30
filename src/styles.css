@@ -1675,8 +1675,10 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 /* flying bee that plays with the mouse */
 .fly-bee { position: fixed; left: 0; top: 0; z-index: 95; pointer-events: none; will-change: transform; }
+.fly-bee.main { pointer-events: auto; cursor: pointer; padding: 6px; margin: -6px; }
+.fly-bee.swarm .bee-wing { animation-duration: 0.05s; }
 .fly-bee .bee { filter: drop-shadow(0 4px 5px rgba(0,0,0,.28)); }
-@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) { .fly-bee { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fly-bee { display: none; } }
 @media (min-width: 1001px) { .shell .dock { display: none !important; } }
 
 /* font size box above a selection */
