@@ -39,6 +39,11 @@ export default function Login() {
           {t('signInGoogle')}
         </button>
         {err && <p className="err">{t('loginError')}</p>}
+        <div className="legal-row">
+          <a href="/privacy">{t('privacyLink')}</a>
+          <span>·</span>
+          <a href="/terms">{t('termsLink')}</a>
+        </div>
         <div className="lang-row">
           {LANGS.map((l) => (
             <button key={l.code} className={l.code === lang ? 'on' : ''} onClick={() => setLang(l.code)}>

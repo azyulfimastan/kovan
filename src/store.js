@@ -80,8 +80,8 @@ export const cloudStore = {
     const { data, error } = await sb.from('folders').select('id,name,color').eq('workspace_id', wid).order('created_at')
     return error ? [] : data // folders table not installed yet -> no folders
   },
-  async createFolder(wid, name) {
-    return ok(await sb.from('folders').insert({ workspace_id: wid, name }).select('id,name,color').single())
+  async createFolder(wid, name, color) {
+    return ok(await sb.from('folders').insert({ workspace_id: wid, name, color }).select('id,name,color').single())
   },
   async updateFolder(id, patch) {
     ok(await sb.from('folders').update(patch).eq('id', id))
@@ -245,9 +245,9 @@ export const localStore = {
   async listFolders() {
     return load().folders || []
   },
-  async createFolder(wid, name) {
+  async createFolder(wid, name, color) {
     const d = load()
-    const f = { id: uid(), name }
+    const f = { id: uid(), name, color }
     d.folders = [...(d.folders || []), f]
     save(d)
     return f
@@ -333,8 +333,16 @@ export const localStore = {
   presence() {
     return () => {}
   },
-  liveChannel() {
-    return { send() {}, ready() {}, close() {} }
+  // same-browser tabs share live edits (also lets the app be tested without a server)
+  liveChannel(noteId, handlers) {
+    if (typeof BroadcastChannel === 'undefined') return { send() {}, ready() {}, close() {} }
+    const bc = new BroadcastChannel('kovan-live:' + noteId)
+    bc.onmessage = (e) => handlers[e.data?.event]?.(e.data.payload)
+    return {
+      send: (event, payload) => bc.postMessage({ event, payload }),
+      ready: (f) => setTimeout(f, 0),
+      close: () => bc.close(),
+    }
   },
   async uploadImage(wid, file) {
     return new Promise((res, rej) => {

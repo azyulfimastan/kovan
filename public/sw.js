@@ -1,4 +1,4 @@
-const V = 'kovan-v1'
+const V = 'kovan-v2'
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(V).then((c) => c.addAll(['/', '/favicon.svg', '/icon-192.png'])).then(() => self.skipWaiting()))
 })

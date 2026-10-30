@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cloud, store } from './store'
 import { I18n, LANGS, detectLang, makeT, useI18n } from './i18n'
 import { extractLinks, norm, snippet } from './lib/md'
 import { HexLogo, Icon } from './icons'
-import Editor from './Editor'
+const Editor = lazy(() => import('./Editor'))
 import Graph from './Graph'
 import Board from './Board'
 import Palette from './Palette'
 import ShareDialog from './ShareDialog'
 import Login from './Login'
-import { openLive } from './live'
+
+const liveOn = cloud || import.meta.env.VITE_LIVE_LOCAL === '1'
 import { shrinkImage } from './lib/img'
 
 const lsGet = (k) => {
@@ -95,7 +96,8 @@ function Main() {
   const [allNotes, setNotes] = useState([])
   const notes = useMemo(() => allNotes.filter((n) => !n.deleted_at), [allNotes])
   const trash = useMemo(() => allNotes.filter((n) => n.deleted_at).sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : -1)), [allNotes])
-  const [cursors, setCursors] = useState([])
+  const [liveObj, setLiveObj] = useState(null)
+  const [liveFailed, setLiveFailed] = useState(false)
   const [columns, setColumns] = useState([])
   const [colsLoaded, setColsLoaded] = useState(false)
   const [boardFrom, setBoardFrom] = useState(false)
@@ -104,6 +106,7 @@ function Main() {
   const [view, setView] = useState('notes')
   const [filter, setFilter] = useState({ kind: 'all' })
   const [query, setQuery] = useState('')
+  const searchRef = useRef(null)
   const [mode, setModeState] = useState('edit')
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState('saved')
@@ -140,10 +143,19 @@ function Main() {
     lsSet('kovan.mode', m)
   }
 
-  const flash = useCallback((key) => {
-    setToast(tRef.current(key))
-    setTimeout(() => setToast(''), 2600)
+  const toastT = useRef(null)
+  const flash = useCallback((key, action) => {
+    setToast({ text: tRef.current(key), action })
+    clearTimeout(toastT.current)
+    toastT.current = setTimeout(() => setToast(''), action ? 5000 : 2600)
   }, [])
+
+  // refresh the old built-in welcome note text once
+  useEffect(() => {
+    const old = allNotes.find((n) => /checkboxes work in Preview|onay kutuları Önizleme|pola wyboru działają w Podglądzie/.test(n.body || ''))
+    if (old) edit(old.id, { body: t('welcomeBody') }, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allNotes.length])
 
   notesRef.current = allNotes
   activeIdRef.current = activeId
@@ -185,11 +197,29 @@ function Main() {
     try {
       await store.updateNote(id, { ...patch, updated_by: userRef.current?.id })
     } catch {
-      flash('error')
+      // keep the change and try again when the connection is back
+      pending.current[id] = { ...patch, ...(pending.current[id] || {}) }
+      setSaveState('offline')
+      clearTimeout(timers.current[id])
+      timers.current[id] = setTimeout(() => flushRef.current?.(id), navigator.onLine === false ? 15000 : 5000)
+      return
     }
     if (!pending.current[id]) dirty.current.delete(id)
     if (dirty.current.size === 0) setSaveState('saved')
   }, [flash])
+
+  const flushRef = useRef(null)
+  flushRef.current = flush
+  useEffect(() => {
+    const on = () => Object.keys(pending.current).forEach((id) => flushRef.current(id))
+    const off = () => setSaveState('offline')
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
 
   const flushAll = useCallback(() => {
     Object.keys(pending.current).forEach((id) => flush(id))
@@ -212,7 +242,7 @@ function Main() {
     if (liveRef.current?.id === id) liveRef.current.set(patch)
     pending.current[id] = { ...(pending.current[id] || {}), ...patch }
     dirty.current.add(id)
-    setSaveState('saving')
+    setSaveState((s) => (s === 'offline' && navigator.onLine === false ? 'offline' : 'saving'))
     clearTimeout(timers.current[id])
     if (now) flush(id)
     else timers.current[id] = setTimeout(() => flush(id), 700)
@@ -279,7 +309,19 @@ function Main() {
 
     store
       .listFolders(wid)
-      .then((f) => alive && setFolders(f))
+      .then((list) => {
+        if (!alive) return
+        // give every folder without a saved color its own, unused color
+        const used = new Set(list.filter((f) => FOLDER_COLORS.includes(f.color)).map((f) => f.color))
+        const fixed = list.map((f) => {
+          if (FOLDER_COLORS.includes(f.color)) return f
+          const color = FOLDER_COLORS.find((c) => !used.has(c)) || FOLDER_COLORS[used.size % FOLDER_COLORS.length]
+          used.add(color)
+          store.updateFolder(f.id, { color }).catch(() => {})
+          return { ...f, color }
+        })
+        setFolders(fixed)
+      })
       .catch(() => {})
 
     store
@@ -377,28 +419,47 @@ function Main() {
     })()
   }, [view, colsLoaded, columns.length, wid])
 
+  // warm up the editor in the background so the first note opens instantly
+  useEffect(() => {
+    if (!user) return
+    const go = () => {
+      import('./Editor')
+      if (liveOn) import('./live')
+    }
+    const id = window.requestIdleCallback ? requestIdleCallback(go, { timeout: 2500 }) : setTimeout(go, 1200)
+    return () => (window.cancelIdleCallback ? cancelIdleCallback(id) : clearTimeout(id))
+  }, [user?.id])
+
   // live co-editing of the open note ------------------------------------------
   useEffect(() => {
-    if (!cloud || !activeId || !user || view !== 'notes') return
+    if (!liveOn || !activeId || !user || view !== 'notes') return
     const n = notesRef.current.find((x) => x.id === activeId)
     if (!n) return
     const id = activeId
-    const live = openLive(id, user, { title: n.title, body: n.body }, {
-      onText: ({ title, body }) =>
-        setNotes((ns) => ns.map((x) => (x.id === id && (x.title !== title || x.body !== body) ? { ...x, title, body } : x))),
-      onCursors: setCursors,
-      onTyping: (name) => {
-        setTyping(name || '…')
-        clearTimeout(typingT.current)
-        typingT.current = setTimeout(() => setTyping(''), 2500)
-      },
-    })
-    liveRef.current = live
+    let live = null
+    let gone = false
+    import('./live').then(({ openLive }) => {
+      if (gone) return
+      const cur = notesRef.current.find((x) => x.id === id) || n
+      live = openLive(id, user, { title: cur.title, body: cur.body }, {
+        onTitle: (title) => setNotes((ns) => ns.map((x) => (x.id === id && x.title !== title ? { ...x, title } : x))),
+        onTyping: (name) => {
+          setTyping(name || '…')
+          clearTimeout(typingT.current)
+          typingT.current = setTimeout(() => setTyping(''), 2500)
+        },
+      })
+      liveRef.current = live
+      setLiveObj(live)
+    }).catch(() => !gone && setLiveFailed(true))
     return () => {
-      live.destroy()
-      if (liveRef.current === live) liveRef.current = null
+      gone = true
+      if (live) {
+        live.destroy()
+        if (liveRef.current === live) liveRef.current = null
+      }
+      setLiveObj(null)
       setTyping('')
-      setCursors([])
     }
   }, [activeId, user?.id, view])
 
@@ -503,10 +564,25 @@ function Main() {
     edit(activeNote.id, patch, true)
   }
 
+  async function toggleBoard(n) {
+    if (n.column_id) return edit(n.id, { column_id: null, pos: 0 }, true)
+    let col = columns[0]
+    if (!col) {
+      try {
+        col = await store.createColumn(wid, t('colTodo'), 1000)
+        setColumns((l) => (l.some((x) => x.id === col.id) ? l : [...l, col]))
+      } catch {
+        return flash('error')
+      }
+    }
+    edit(n.id, { column_id: col.id, pos: nextPos(col.id) }, true)
+    flash('addedToBoard')
+  }
+
   function removeNote(id) {
     setActiveId(null)
     edit(id, { deleted_at: new Date().toISOString() }, true)
-    flash('movedToTrash')
+    flash('movedToTrash', { label: tRef.current('undo'), run: () => edit(id, { deleted_at: null }, true) })
   }
 
   function restoreNote(id) {
@@ -582,7 +658,9 @@ function Main() {
     setFolderName('')
     if (!name) return
     try {
-      const f = await store.createFolder(wid, name)
+      const used = new Set(folders.map(folderColor))
+      const color = FOLDER_COLORS.find((c) => !used.has(c)) || FOLDER_COLORS[folders.length % FOLDER_COLORS.length]
+      const f = await store.createFolder(wid, name, color)
       setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, f]))
       setFilter({ kind: 'folder', id: f.id })
       setView('notes')
@@ -725,8 +803,9 @@ function Main() {
     <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
 
-      {!sidePinned && view === 'notes' && !activeNote && folders.length > 0 && (
-        <div className={`dock ${drag ? 'dragging' : ''}`}>
+      {!sidePinned && drag && (
+        <div className="dock dragging">
+          <span className="dock-hint">{t('dropOnFolder')}</span>
           <button data-fid="" className={`${filter.kind === 'all' ? 'on' : ''} ${drag?.over === '' ? 'over' : ''}`} onClick={() => setFilter({ kind: 'all' })}>
             <Icon name="notes" size={15} /> {t('allNotes')}
           </button>
@@ -746,7 +825,7 @@ function Main() {
       {drag && <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>{drag.title || t('untitled')}</div>}
       {!sidePinned && (
         <>
-          {view === 'notes' && !activeNote && (
+          {view === 'notes' && !activeNote && !drag && (
             <button className="fab" onClick={() => newNote()} aria-label={t('newNote')}>
               <Icon name="plus" size={26} />
             </button>
@@ -754,15 +833,22 @@ function Main() {
           <nav className="tabbar">
             <button className={view === 'notes' ? 'on' : ''} onClick={() => { setView('notes'); setActiveId(null) }}>
               <Icon name="notes" size={22} />
-              <span>{t('allNotes')}</span>
+              <span>{t('notesTab')}</span>
+            </button>
+            <button
+              onClick={() => {
+                setView('notes')
+                setActiveId(null)
+                setFilter({ kind: 'all' })
+                setTimeout(() => searchRef.current?.focus(), 30)
+              }}
+            >
+              <Icon name="search" size={22} />
+              <span>{t('search')}</span>
             </button>
             <button className={view === 'board' ? 'on' : ''} onClick={() => { setView('board'); setActiveId(null) }}>
               <Icon name="board" size={22} />
               <span>{t('board')}</span>
-            </button>
-            <button className={view === 'graph' ? 'on' : ''} onClick={() => setView('graph')}>
-              <Icon name="graph" size={22} />
-              <span>{t('graph')}</span>
             </button>
             <button onClick={() => setSideOpen(true)}>
               <Icon name="menu" size={22} />
@@ -828,12 +914,8 @@ function Main() {
             <span className="muted">{t('membersOnline', { n: String(members.length), o: String(Math.max(1, peers.length)) })}</span>
           </button>
         )}
-        <button className="btn primary wide" onClick={() => newNote()}>
+        <button className="btn primary wide side-new" onClick={() => newNote()}>
           <Icon name="plus" size={16} /> {t('newNote')}
-        </button>
-        <button className="search-btn" onClick={() => setPalette(true)}>
-          <Icon name="search" size={15} /> <span>{t('search')}</span>
-          <kbd>Ctrl K</kbd>
         </button>
 
         <nav className="nav">
@@ -1035,7 +1117,12 @@ function Main() {
         </header>
         <div className="list-search">
           <Icon name="search" size={15} />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchNotes')} />
+          <input ref={searchRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('searchNotes')} />
+          {query && (
+            <button className="clear-q" onClick={() => setQuery('')} aria-label={t('close')}>
+              <Icon name="x" size={14} />
+            </button>
+          )}
         </div>
         <ul className="cards">
           {visible.length === 0 && (
@@ -1062,7 +1149,7 @@ function Main() {
                   {n.pinned && <Icon name="pin" size={13} className="pin-ico" />}
                   <span className="card-date">{when(n.updated_at, lang)}</span>
                 </div>
-                <p>{snippet(n.body) || ' '}</p>
+                {snippet(n.body) && <p>{snippet(n.body)}</p>}
               </button>
             </li>
           ))}
@@ -1147,33 +1234,34 @@ function Main() {
             <Graph notes={notes} activeId={activeId} onOpen={openNote} />
           </div>
         ) : activeNote ? (
+          <Suspense fallback={<div className="editor" />}>
           <Editor
             key={activeNote.id}
             note={activeNote}
             notes={notes}
             backlinks={backlinks}
             saveState={saveState}
-            mode={mode}
-            setMode={setMode}
-            hasTitle={hasTitle}
+            cloud={liveOn && !liveFailed}
+            live={liveObj && liveObj.id === activeNote.id ? liveObj : null}
             onChange={(patch) => edit(activeNote.id, patch)}
+            onBodyRemote={(body) => {
+              const id = activeNote.id
+              setNotes((ns) => ns.map((x) => (x.id === id && x.body !== body ? { ...x, body } : x)))
+            }}
             onPin={() => edit(activeNote.id, { pinned: !activeNote.pinned }, true)}
             onDelete={() => removeNote(activeNote.id)}
             onOpenTitle={openTitle}
             onOpenNote={openNote}
             typing={typing}
-            cursors={cursors}
-            onCursor={(i) => liveRef.current?.cursor(i)}
             onUpload={uploadImage}
             onImages={(arr) => edit(activeNote.id, { images: arr }, true)}
             folders={folders}
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
-            columns={columns}
-            members={members}
-            onCard={setCard}
+            onToggleBoard={() => toggleBoard(activeNote)}
             boardBack={boardFrom ? () => { flushAll(); setView('board'); setActiveId(null); setBoardFrom(false) } : null}
             onBack={() => (flushAll(), boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null))}
           />
+          </Suspense>
         ) : (
           <div className="blank">
             <div className="blank-hex">
@@ -1245,6 +1333,9 @@ function Main() {
                 <h3>{t('moveFolder')}</h3>
               </div>
               <p className="muted move-title">{mn.title || t('untitled')}</p>
+              <button className="btn soft wide sheet-board" onClick={() => { toggleBoard(mn); setMoveId(null) }}>
+                <Icon name="board" size={16} /> {mn.column_id ? t('removeFromBoard') : t('addToBoard')}
+              </button>
               <div className="move-list">
                 <button className={!mn.folder_id ? 'on' : ''} onClick={() => pick(null)}>
                   <Icon name="notes" size={16} /> {t('noFolder')}
@@ -1288,7 +1379,21 @@ function Main() {
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className="toast">
+          <span>{toast.text}</span>
+          {toast.action && (
+            <button
+              onClick={() => {
+                toast.action.run()
+                setToast('')
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

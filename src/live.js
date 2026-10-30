@@ -1,5 +1,8 @@
 import * as Y from 'yjs'
+import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
+import { prosemirrorJSONToYXmlFragment } from '@tiptap/y-tiptap'
 import { store } from './store'
+import { schema, mdToJSON } from './lib/rich'
 
 const toB64 = (u8) => {
   let s = ''
@@ -18,7 +21,7 @@ function hash32(str) {
 }
 
 const COLORS = ['#e0556b', '#3b8de0', '#2fa66a', '#8a63d2', '#d9822b', '#17a2b8', '#c2478f', '#7a8a2c']
-const colorOf = (id) => COLORS[hash32(String(id)) % COLORS.length]
+export const colorOf = (id) => COLORS[hash32(String(id)) % COLORS.length]
 
 // Replace the text of a Y.Text with `next` using the smallest edit.
 function setText(doc, yt, next) {
@@ -37,90 +40,81 @@ function setText(doc, yt, next) {
 
 /**
  * Live co-editing of one note (CRDT over a Supabase broadcast channel).
+ * The title is a Y.Text, the body is the rich-text editor's document (Y.XmlFragment).
  * Every keystroke is shared instantly; concurrent edits merge instead of overwriting.
  */
-export function openLive(noteId, user, initial, { onText, onTyping, onCursors }) {
+export function openLive(noteId, user, initial, { onTitle, onTyping }) {
   const doc = new Y.Doc()
   const yTitle = doc.getText('title')
-  const yBody = doc.getText('body')
+  const fragment = doc.getXmlFragment('prose')
+  const awareness = new Awareness(doc)
   let synced = false
   let dead = false
-  let pending = null // local edits made before the first sync
+  let pendingTitle = null
   let queue = []
   let flushT = null
-  const cursors = new Map() // peer id -> { name, color, pos, ts }
-  let lastIdx = null
-  let curT = null
+  const waiters = []
 
-  const ch = store.liveChannel(noteId, {
+  const ch = store.liveChannel('v2:' + noteId, {
     upd: ({ u, name }) => {
       Y.applyUpdate(doc, fromB64(u), 'remote')
       onTyping?.(name)
     },
     'sync-req': ({ sv }) => {
+      sendAwareness()
       if (!synced) return
       ch.send('sync-res', { u: toB64(Y.encodeStateAsUpdate(doc, fromB64(sv))) })
-    },
-    cur: ({ id, name, s: rel }) => {
-      try {
-        cursors.set(id, { name, color: colorOf(id), pos: Y.decodeRelativePosition(fromB64(rel)), ts: Date.now() })
-        emitCursors()
-      } catch {}
-    },
-    bye: ({ id }) => {
-      cursors.delete(id)
-      emitCursors()
     },
     'sync-res': ({ u }) => {
       Y.applyUpdate(doc, fromB64(u), 'remote')
       finishSync(false)
     },
+    aw: ({ u }) => {
+      try {
+        applyAwarenessUpdate(awareness, fromB64(u), 'remote')
+      } catch {}
+    },
   })
 
-  function cursorList() {
-    const now = Date.now()
-    const out = []
-    for (const [id, c] of cursors) {
-      if (now - c.ts > 12000) {
-        cursors.delete(id)
-        continue
-      }
-      const abs = Y.createAbsolutePositionFromRelativePosition(c.pos, doc)
-      if (abs && abs.type === yBody) out.push({ id, name: c.name, color: c.color, idx: abs.index })
-    }
-    return out
+  function sendAwareness(ids = [doc.clientID]) {
+    if (dead) return
+    ch.send('aw', { u: toB64(encodeAwarenessUpdate(awareness, ids)) })
   }
-  function emitCursors() {
-    if (!dead) onCursors?.(cursorList())
-  }
-  function sendCursor() {
-    if (lastIdx == null || !synced || dead) return
-    const rel = Y.createRelativePositionFromTypeIndex(yBody, Math.min(lastIdx, yBody.length))
-    ch.send('cur', { id: user.id, name: user.name || user.email || '', s: toB64(Y.encodeRelativePosition(rel)) })
-  }
-
-  function emit() {
-    if (!dead) onText({ title: yTitle.toString(), body: yBody.toString() })
-    emitCursors()
-  }
+  // cursor moves are sent at most ~7 times a second
+  let awIds = new Set()
+  let awT = null
+  awareness.on('update', ({ added, updated, removed }, origin) => {
+    if (origin === 'remote') return
+    added.concat(updated, removed).forEach((id) => awIds.add(id))
+    if (awT) return
+    awT = setTimeout(() => {
+      awT = null
+      const ids = [...awIds]
+      awIds = new Set()
+      sendAwareness(ids)
+    }, 140)
+  })
 
   function finishSync(seed) {
     if (synced || dead) return
-    if (seed) {
+    if (seed && fragment.length === 0 && (initial.title || initial.body)) {
+      // everyone who opens the same saved note seeds the exact same update, so seeds never duplicate
       const d = new Y.Doc()
       d.clientID = hash32((initial.title || '') + '\u0000' + (initial.body || ''))
       if (initial.title) d.getText('title').insert(0, initial.title)
-      if (initial.body) d.getText('body').insert(0, initial.body)
+      try {
+        prosemirrorJSONToYXmlFragment(schema, mdToJSON(initial.body || ''), d.getXmlFragment('prose'))
+      } catch {}
       Y.applyUpdate(doc, Y.encodeStateAsUpdate(d), 'seed')
     }
     synced = true
     clearTimeout(timer)
-    if (pending) {
-      setText(doc, yTitle, pending.title)
-      setText(doc, yBody, pending.body)
-      pending = null
+    if (pendingTitle != null) {
+      setText(doc, yTitle, pendingTitle)
+      pendingTitle = null
     }
-    emit()
+    onTitle?.(yTitle.toString())
+    waiters.splice(0).forEach((f) => f())
   }
 
   doc.on('update', (u, origin) => {
@@ -132,45 +126,47 @@ export function openLive(noteId, user, initial, { onText, onTyping, onCursors })
         const merged = Y.mergeUpdates(queue)
         queue = []
         ch.send('upd', { u: toB64(merged), name: user.name || user.email || '' })
-      }, 60)
+      }, 80)
   })
-  const onObs = (_e, tr) => {
-    if (tr.origin === 'remote') emit()
-  }
-  yTitle.observe(onObs)
-  yBody.observe(onObs)
+  yTitle.observe((_e, tr) => {
+    if (tr.origin === 'remote' && !dead) onTitle?.(yTitle.toString())
+  })
 
   const timer = setTimeout(() => finishSync(true), 700)
-  const beat = setInterval(() => {
-    sendCursor()
-    emitCursors()
-  }, 5000)
-  ch.ready(() => ch.send('sync-req', { sv: toB64(Y.encodeStateVector(doc)) }))
+  ch.ready(() => {
+    ch.send('sync-req', { sv: toB64(Y.encodeStateVector(doc)) })
+    sendAwareness()
+  })
 
   return {
     id: noteId,
-    cursor(idx) {
-      lastIdx = idx
-      clearTimeout(curT)
-      curT = setTimeout(sendCursor, 80)
+    doc,
+    fragment,
+    awareness,
+    user: { name: (user.name || user.email || '?').split(' ')[0], color: colorOf(user.id) },
+    get synced() {
+      return synced
+    },
+    whenSynced(f) {
+      if (synced) f()
+      else waiters.push(f)
     },
     set(patch) {
-      if (dead) return
-      if (!synced) {
-        pending = { title: initial.title || '', body: initial.body || '', ...(pending || {}), ...patch }
-        return
-      }
-      if ('title' in patch) setText(doc, yTitle, patch.title)
-      if ('body' in patch) setText(doc, yBody, patch.body)
-      emitCursors()
+      if (dead || !('title' in patch)) return
+      if (!synced) pendingTitle = patch.title
+      else setText(doc, yTitle, patch.title)
     },
     destroy() {
-      ch.send('bye', { id: user.id })
+      try {
+        removeAwarenessStates(awareness, [doc.clientID], 'local')
+      } catch {}
+      clearTimeout(awT)
+      sendAwareness([doc.clientID])
       dead = true
       clearTimeout(timer)
-      clearTimeout(curT)
-      clearInterval(beat)
       clearTimeout(flushT)
+      if (queue.length) ch.send('upd', { u: toB64(Y.mergeUpdates(queue)), name: user.name || '' })
+      awareness.destroy()
       ch.close()
       doc.destroy()
     },

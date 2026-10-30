@@ -34,7 +34,7 @@ export default function Board({ notes, columns, members, onOpen, onMove, onAdd, 
   const byCol = useMemo(() => {
     const m = new Map([['', []]])
     columns.forEach((c) => m.set(c.id, []))
-    notes.forEach((n) => m.get(n.column_id && m.has(n.column_id) ? n.column_id : columns[0]?.id ?? '').push(n))
+    notes.forEach((n) => n.column_id && m.has(n.column_id) && m.get(n.column_id).push(n))
     for (const [k, l] of m) l.sort(k === '' ? (a, b) => (a.updated_at < b.updated_at ? 1 : -1) : (a, b) => a.pos - b.pos || (a.updated_at < b.updated_at ? 1 : -1))
     return m
   }, [notes, columns])

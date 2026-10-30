@@ -19,6 +19,10 @@ export function extractLinks(body) {
 export function snippet(body) {
   return (body || '')
     .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/<\/?(p|u|br)\s*\/?>/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/\\([\\*_`~#>\-.[\]])/g, '$1')
     .replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a)
     .replace(/^[#>\-*+\d.\s[\]xX]+/gm, '')
     .replace(/[*_`~]/g, '')
