@@ -30,7 +30,7 @@ const lsDel = (k) => {
   } catch {}
 }
 
-const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c']
+const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c', '#e0b020', '#5b6ee1', '#2f9e8f', '#8d6e63']
 const folderColor = (f) => {
   if (!f) return null
   if (f.color && FOLDER_COLORS.includes(f.color)) return f.color
@@ -80,7 +80,9 @@ function Main() {
   const [folders, setFolders] = useState([])
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderMenu, setFolderMenu] = useState(false)
+  const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
+  const [drag, setDrag] = useState(null) // {id,title,x,y,over}
   const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
   const [folderName, setFolderName] = useState('')
   const [newWsInvite, setNewWsInvite] = useState(true)
@@ -589,6 +591,12 @@ function Main() {
     }
   }
 
+  function setFolderColor(f, color) {
+    setFolders((l) => l.map((x) => (x.id === f.id ? { ...x, color } : x)))
+    store.updateFolder(f.id, { color }).catch(() => flash('error'))
+    setColorMenu(false)
+  }
+
   function cycleFolderColor(f) {
     const cur = folderColor(f)
     const next = FOLDER_COLORS[(FOLDER_COLORS.indexOf(cur) + 1) % FOLDER_COLORS.length]
@@ -651,6 +659,50 @@ function Main() {
     return () => { window.removeEventListener('touchstart', ts); window.removeEventListener('touchend', te) }
   }, [])
 
+  // long-press a card, then drag it onto a folder in the dock (phones)
+  function startPress(e, n) {
+    lp.current.fired = false
+    const x0 = e.touches[0].clientX, y0 = e.touches[0].clientY
+    let armed = false, moved = false, over
+    const cancelTimer = () => clearTimeout(timer)
+    const hit = (x, y) => document.elementFromPoint(x, y)?.closest?.('[data-fid]')?.getAttribute('data-fid')
+    const onMove = (ev) => {
+      const t0 = ev.touches[0]
+      if (!armed) {
+        if (Math.abs(t0.clientX - x0) > 8 || Math.abs(t0.clientY - y0) > 8) cleanup()
+        return
+      }
+      ev.preventDefault()
+      if (Math.abs(t0.clientX - x0) > 12 || Math.abs(t0.clientY - y0) > 12) moved = true
+      over = hit(t0.clientX, t0.clientY)
+      setDrag({ id: n.id, title: n.title, x: t0.clientX, y: t0.clientY, over })
+    }
+    const onEnd = () => {
+      if (armed) {
+        lp.current.fired = true
+        if (over !== undefined && over !== null) edit(n.id, { folder_id: over || null }, true)
+        else if (!moved) setMoveId(n.id)
+      }
+      cleanup()
+    }
+    const cleanup = () => {
+      cancelTimer()
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onEnd)
+      window.removeEventListener('touchcancel', cleanup)
+      setDrag(null)
+    }
+    const timer = setTimeout(() => {
+      armed = true
+      lp.current.fired = true
+      navigator.vibrate?.(15)
+      setDrag({ id: n.id, title: n.title, x: x0, y: y0, over: undefined })
+    }, 420)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onEnd)
+    window.addEventListener('touchcancel', cleanup)
+  }
+
   // render -------------------------------------------------------------------
   if (user === undefined) {
     return (
@@ -673,6 +725,25 @@ function Main() {
     <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
 
+      {!sidePinned && view === 'notes' && !activeNote && folders.length > 0 && (
+        <div className={`dock ${drag ? 'dragging' : ''}`}>
+          <button data-fid="" className={`${filter.kind === 'all' ? 'on' : ''} ${drag?.over === '' ? 'over' : ''}`} onClick={() => setFilter({ kind: 'all' })}>
+            <Icon name="notes" size={15} /> {t('allNotes')}
+          </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              data-fid={f.id}
+              className={`${filter.kind === 'folder' && filter.id === f.id ? 'on' : ''} ${drag?.over === f.id ? 'over' : ''}`}
+              style={{ '--c': folderColor(f) }}
+              onClick={() => setFilter({ kind: 'folder', id: f.id })}
+            >
+              <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {drag && <div className="drag-ghost" style={{ left: drag.x, top: drag.y }}>{drag.title || t('untitled')}</div>}
       {!sidePinned && (
         <>
           {view === 'notes' && !activeNote && (
@@ -912,6 +983,23 @@ function Main() {
               <Icon name="chevron" size={18} />
             </button>
             <span className="muted">{visible.length}</span>
+            {filter.kind === 'folder' && folders.find((f) => f.id === filter.id) && (
+              <>
+                <button className="color-btn" onClick={() => setColorMenu((v) => !v)}>
+                  <span className="f-dot" style={{ background: folderColor(folders.find((f) => f.id === filter.id)) }} /> {t('pickColor')}
+                </button>
+                {colorMenu && (
+                  <>
+                    <div className="menu-scrim" onClick={() => setColorMenu(false)} />
+                    <div className="color-menu">
+                      {FOLDER_COLORS.map((c) => (
+                        <button key={c} style={{ background: c }} aria-label={c} className={folderColor(folders.find((f) => f.id === filter.id)) === c ? 'on' : ''} onClick={() => setFolderColor(folders.find((f) => f.id === filter.id), c)} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
             {folderMenu && (
               <>
                 <div className="menu-scrim" onClick={() => setFolderMenu(false)} />
@@ -967,17 +1055,7 @@ function Main() {
                   openNote(n.id)
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setMoveId(n.id) }}
-                onTouchStart={(e) => {
-                  lp.current.fired = false
-                  lp.current.x = e.touches[0].clientX; lp.current.y = e.touches[0].clientY
-                  clearTimeout(lp.current.t)
-                  lp.current.t = setTimeout(() => { lp.current.fired = true; navigator.vibrate?.(15); setMoveId(n.id) }, 450)
-                }}
-                onTouchMove={(e) => {
-                  if (Math.abs(e.touches[0].clientX - lp.current.x) > 8 || Math.abs(e.touches[0].clientY - lp.current.y) > 8) clearTimeout(lp.current.t)
-                }}
-                onTouchEnd={() => clearTimeout(lp.current.t)}
-                onTouchCancel={() => clearTimeout(lp.current.t)}
+                onTouchStart={(e) => startPress(e, n)}
               >
                 <div className="card-top">
                   <strong>{n.title || t('untitled')}</strong>

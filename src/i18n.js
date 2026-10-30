@@ -156,6 +156,7 @@ const D = {
     unassigned: 'Unassigned',
     colorLabel: 'Color',
     folderColor: 'Change folder color',
+    pickColor: 'Color',
   },
   tr: {
     tagline: 'Notlar, birlikte.',
@@ -306,6 +307,7 @@ const D = {
     unassigned: 'Atanmamış',
     colorLabel: 'Renk',
     folderColor: 'Klasör rengini değiştir',
+    pickColor: 'Renk',
   },
   pl: {
     tagline: 'Notatki, razem.',
@@ -456,6 +458,7 @@ const D = {
     unassigned: 'Nieprzypisane',
     colorLabel: 'Kolor',
     folderColor: 'Zmień kolor folderu',
+    pickColor: 'Kolor',
   },
 }
 
