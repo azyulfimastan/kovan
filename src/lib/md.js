@@ -16,16 +16,6 @@ export function extractLinks(body) {
   return out
 }
 
-export function extractTags(body) {
-  const set = new Set()
-  const re = /(^|\s)#([\p{L}\p{N}_-]+)/gu
-  let m
-  while ((m = re.exec(body || ''))) {
-    if (/\p{L}/u.test(m[2])) set.add(m[2].toLowerCase())
-  }
-  return [...set]
-}
-
 export function snippet(body) {
   return (body || '')
     .replace(/```[\s\S]*?```/g, ' ')
@@ -38,15 +28,12 @@ export function snippet(body) {
 }
 
 export function renderMarkdown(body, hasTitle) {
-  const re = /\[\[([^\]\n|]+)(?:\|([^\]\n]*))?\]\]|(^|[\s>])#([\p{L}\p{N}_-]+)/gmu
-  const src = (body || '').replace(re, (m, link, label, pre, tag) => {
+  const re = /\[\[([^\]\n|]+)(?:\|([^\]\n]*))?\]\]/gmu
+  const src = (body || '').replace(re, (m, link, label) => {
     if (link) {
       const title = link.trim()
       const ok = hasTitle(title)
       return `<a class="wl${ok ? '' : ' missing'}" data-wl="${esc(title)}">${esc((label || title).trim())}</a>`
-    }
-    if (tag && /\p{L}/u.test(tag)) {
-      return `${pre}<span class="tag" data-tag="${esc(tag.toLowerCase())}">#${esc(tag)}</span>`
     }
     return m
   })
@@ -58,7 +45,7 @@ export function renderMarkdown(body, hasTitle) {
     (_m, c) =>
       `<span class="cb${c ? ' on' : ''}" data-cb="${i++}" role="checkbox" aria-checked="${c ? 'true' : 'false'}" tabindex="0"></span>`,
   )
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['data-wl', 'data-tag', 'data-cb'] })
+  return DOMPurify.sanitize(html, { ADD_ATTR: ['data-wl', 'data-cb'] })
 }
 
 // Flip the n-th checkbox ("- [ ]" <-> "- [x]") in the markdown source.

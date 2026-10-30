@@ -39,7 +39,6 @@ export default function Editor({
   onDelete,
   onOpenTitle,
   onOpenNote,
-  onTag,
   typing = '',
   onUpload,
   folders = [],
@@ -201,8 +200,6 @@ export default function Editor({
   function onPreviewClick(e) {
     const wl = e.target.closest('[data-wl]')
     if (wl) return onOpenTitle(wl.dataset.wl)
-    const tag = e.target.closest('[data-tag]')
-    if (tag) return onTag(tag.dataset.tag)
     const cb = e.target.closest('[data-cb]')
     if (cb) onChange({ body: toggleCheckbox(note.body, Number(cb.dataset.cb)) })
   }
@@ -342,15 +339,6 @@ export default function Editor({
 
           <footer className="ed-foot">
             <span>{t('words', { n: words })}</span>
-            {note.tags?.length > 0 && (
-              <span className="chips">
-                {note.tags.map((g) => (
-                  <button key={g} className="chip" onClick={() => onTag(g)}>
-                    #{g}
-                  </button>
-                ))}
-              </span>
-            )}
           </footer>
 
           <section className="backlinks">

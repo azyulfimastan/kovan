@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cloud, store } from './store'
 import { I18n, LANGS, detectLang, makeT, useI18n } from './i18n'
-import { extractLinks, extractTags, norm, snippet } from './lib/md'
+import { extractLinks, norm, snippet } from './lib/md'
 import { HexLogo, Icon } from './icons'
 import Editor from './Editor'
 import Graph from './Graph'
@@ -105,6 +105,13 @@ function Main() {
   const [newWsName, setNewWsName] = useState('')
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
+  const [sidePinned, setSidePinned] = useState(() => lsGet('kovan.pin') === '1')
+  const closeSide = () => !sidePinned && setSideOpen(false)
+  const togglePin = () =>
+    setSidePinned((p) => {
+      lsSet('kovan.pin', p ? '0' : '1')
+      return !p
+    })
   const [toast, setToast] = useState('')
 
   const [typing, setTyping] = useState('')
@@ -194,7 +201,6 @@ function Main() {
   }, [flushAll])
 
   function edit(id, patch, now = false) {
-    if ('body' in patch) patch = { ...patch, tags: extractTags(patch.body) }
     setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)))
     if (liveRef.current?.id === id) liveRef.current.set(patch)
     pending.current[id] = { ...(pending.current[id] || {}), ...patch }
@@ -274,7 +280,7 @@ function Main() {
           welcome.current = null
           try {
             const body = tRef.current('welcomeBody')
-            const n = await store.createNote(wid, { title: tRef.current('welcomeTitle'), body, tags: extractTags(body) })
+            const n = await store.createNote(wid, { title: tRef.current('welcomeTitle'), body })
             list = [n]
           } catch {}
         }
@@ -291,7 +297,7 @@ function Main() {
           ns.map((n) => {
             if (n.id !== row.id) return n
             // the open note is kept in sync live; only take non-text fields from the database
-            if (liveRef.current?.id === row.id) return { ...row, title: n.title, body: n.body, tags: n.tags }
+            if (liveRef.current?.id === row.id) return { ...row, title: n.title, body: n.body }
             return dirty.current.has(row.id) ? n : row
           }),
         ),
@@ -325,7 +331,7 @@ function Main() {
     const id = activeId
     const live = openLive(id, user, { title: n.title, body: n.body }, {
       onText: ({ title, body }) =>
-        setNotes((ns) => ns.map((x) => (x.id === id && (x.title !== title || x.body !== body) ? { ...x, title, body, tags: extractTags(body) } : x))),
+        setNotes((ns) => ns.map((x) => (x.id === id && (x.title !== title || x.body !== body) ? { ...x, title, body } : x))),
       onTyping: (name) => {
         setTyping(name || '…')
         clearTimeout(typingT.current)
@@ -347,23 +353,11 @@ function Main() {
   const titleSet = useMemo(() => new Set(notes.map((n) => norm(n.title)).filter(Boolean)), [notes])
   const hasTitle = useCallback((x) => titleSet.has(norm(x)), [titleSet])
 
-  const tagCounts = useMemo(() => {
-    const m = new Map()
-    notes.forEach((n) => (n.tags || []).forEach((g) => m.set(g, (m.get(g) || 0) + 1)))
-    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-  }, [notes])
-
   const visible = useMemo(() => {
     const q = norm(query)
     return notes
       .filter((n) =>
-        filter.kind === 'pinned'
-          ? n.pinned
-          : filter.kind === 'tag'
-            ? (n.tags || []).includes(filter.tag)
-            : filter.kind === 'folder'
-              ? n.folder_id === filter.id
-              : true,
+        filter.kind === 'pinned' ? n.pinned : filter.kind === 'folder' ? n.folder_id === filter.id : true,
       )
       .filter((n) => !q || norm(n.title).includes(q) || norm(n.body).includes(q))
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (a.updated_at < b.updated_at ? 1 : -1))
@@ -380,12 +374,12 @@ function Main() {
     try {
       const body = init.body || ''
       const folder_id = init.folder_id || (filter.kind === 'folder' ? filter.id : null)
-      const n = await store.createNote(wid, { title: init.title || '', body, tags: extractTags(body), folder_id })
+      const n = await store.createNote(wid, { title: init.title || '', body, folder_id })
       setNotes((ns) => [n, ...ns.filter((x) => x.id !== n.id)])
       setActiveId(n.id)
       setView('notes')
       setModeState('edit')
-      setSideOpen(false)
+      closeSide()
     } catch {
       flash('error')
     }
@@ -394,7 +388,7 @@ function Main() {
   function openNote(id) {
     setActiveId(id)
     setView('notes')
-    setSideOpen(false)
+    closeSide()
   }
 
   function openTitle(title) {
@@ -477,13 +471,6 @@ function Main() {
     setUser(null)
   }
 
-  const pickTag = (g) => {
-    setFilter({ kind: 'tag', tag: g })
-    setView('notes')
-    setActiveId(null)
-    setSideOpen(false)
-  }
-
   const nextTheme = () => setTheme((x) => (x === 'dark' ? 'light' : 'dark'))
 
   const commands = [
@@ -519,21 +506,22 @@ function Main() {
   const heading =
     filter.kind === 'pinned'
       ? t('pinned')
-      : filter.kind === 'tag'
-        ? '#' + filter.tag
-        : filter.kind === 'folder'
-          ? folders.find((f) => f.id === filter.id)?.name || t('allNotes')
-          : t('allNotes')
+      : filter.kind === 'folder'
+        ? folders.find((f) => f.id === filter.id)?.name || t('allNotes')
+        : t('allNotes')
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' ? 'is-graph' : ''} ${sideOpen ? 'side-open' : ''}`}>
-      <div className="scrim" onClick={() => setSideOpen(false)} />
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
+      <div className="scrim" onClick={() => closeSide()} />
 
       <aside className="side">
         <div className="brand">
           <HexLogo size={26} />
           <span className="logo-text">Kovan</span>
+          <button className={`icon-btn pin-side ${sidePinned ? 'active' : ''}`} onClick={togglePin} title={t('pinMenu')}>
+            <Icon name="pin" size={16} />
+          </button>
         </div>
 
         <div className="ws-row">
@@ -581,7 +569,7 @@ function Main() {
             onClick={() => {
               setFilter({ kind: 'all' })
               setView('notes')
-              setSideOpen(false)
+              closeSide()
             }}
           >
             <Icon name="notes" size={16} /> {t('allNotes')} <em>{notes.length}</em>
@@ -594,7 +582,7 @@ function Main() {
                 setFilter({ kind: 'folder', id: f.id })
                 setView('notes')
                 setActiveId(null)
-                setSideOpen(false)
+                closeSide()
               }}
             >
               <Icon name="folder" size={15} /> <span className="f-name">{f.name}</span>
@@ -635,7 +623,7 @@ function Main() {
             onClick={() => {
               setFilter({ kind: 'pinned' })
               setView('notes')
-              setSideOpen(false)
+              closeSide()
             }}
           >
             <Icon name="pin" size={16} /> {t('pinned')} <em>{notes.filter((n) => n.pinned).length}</em>
@@ -644,25 +632,12 @@ function Main() {
             className={view === 'graph' ? 'on' : ''}
             onClick={() => {
               setView('graph')
-              setSideOpen(false)
+              closeSide()
             }}
           >
             <Icon name="graph" size={16} /> {t('graph')}
           </button>
         </nav>
-
-        {tagCounts.length > 0 && (
-          <div className="tag-block">
-            <h5>{t('tags')}</h5>
-            <div className="chips">
-              {tagCounts.slice(0, 24).map(([g, c]) => (
-                <button key={g} className={`chip ${filter.kind === 'tag' && filter.tag === g ? 'on' : ''}`} onClick={() => pickTag(g)}>
-                  #{g} <em>{c}</em>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="side-foot">
           {!cloud && (
@@ -751,13 +726,6 @@ function Main() {
                   <span className="card-date">{when(n.updated_at, lang)}</span>
                 </div>
                 <p>{snippet(n.body) || ' '}</p>
-                {(n.tags || []).length > 0 && (
-                  <div className="card-tags">
-                    {n.tags.slice(0, 3).map((g) => (
-                      <span key={g}>#{g}</span>
-                    ))}
-                  </div>
-                )}
               </button>
             </li>
           ))}
@@ -790,7 +758,6 @@ function Main() {
             onDelete={() => removeNote(activeNote.id)}
             onOpenTitle={openTitle}
             onOpenNote={openNote}
-            onTag={pickTag}
             typing={typing}
             onUpload={uploadImage}
             folders={folders}

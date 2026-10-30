@@ -1266,3 +1266,40 @@ kbd {
 .typing { font-size: 13px; color: var(--honey-strong); animation: blink 1.2s ease-in-out infinite; white-space: nowrap; }
 @keyframes blink { 50% { opacity: 0.45; } }
 .prose img, .ed-img { max-width: 100%; border-radius: 12px; }
+
+/* ---------- pinned sidebar (phones & tablets) ---------- */
+.pin-side { display: none; margin-left: auto; }
+@media (max-width: 1000px) {
+  .pin-side { display: inline-grid; }
+  .shell.side-pinned .side { position: static; transform: none; width: auto; box-shadow: none; z-index: auto; }
+  .shell.side-pinned .scrim { display: none; }
+  .shell.side-pinned .only-mid { display: none !important; }
+  .shell.side-pinned { grid-template-columns: 250px 300px minmax(0, 1fr); }
+  .shell.side-pinned.is-graph { grid-template-columns: 250px minmax(0, 1fr); }
+  .pin-side.active { color: var(--honey-strong); background: var(--honey-soft); }
+}
+@media (max-width: 720px) {
+  .shell.side-pinned,
+  .shell.side-pinned.is-graph { grid-template-columns: minmax(160px, 44%) minmax(0, 1fr); }
+  .shell.side-pinned .side { padding: 12px 8px; gap: 8px; font-size: 13px; }
+  .shell.side-pinned .logo-text { font-size: 18px; }
+  .shell.side-pinned .search-btn kbd { display: none; }
+  .shell.side-pinned .btn { padding: 8px 6px; font-size: 13px; }
+  .shell.side-pinned .swatches { flex-wrap: wrap; gap: 6px; }
+  .shell.side-pinned .swatches .sw-label { display: none; }
+  .shell.side-pinned .swatches .sw { width: 18px; height: 18px; }
+  .shell.side-pinned .me-name { display: none; }
+  .shell.side-pinned .list-head,
+  .shell.side-pinned .ed-bar { padding-left: 8px; padding-right: 8px; }
+  input, textarea, select { font-size: 16px; }
+}
+
+/* ---------- app-like behaviour ---------- */
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+.shell {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+@media (display-mode: standalone) {
+  body { -webkit-user-select: none; user-select: none; }
+  input, textarea, .prose, .ed-body { -webkit-user-select: text; user-select: text; }
+}
