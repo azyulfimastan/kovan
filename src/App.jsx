@@ -624,6 +624,30 @@ function Main() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // phone gestures: edge-swipe opens the menu / goes back, swipe left closes the menu
+  const gest = useRef({})
+  gest.current = { sideOpen, sidePinned, hasNote: !!(activeId && view === 'notes'), back: () => (boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null)) }
+  useEffect(() => {
+    let sx = 0, sy = 0, on = false
+    const ts = (e) => {
+      const t0 = e.touches[0]
+      sx = t0.clientX; sy = t0.clientY; on = e.touches.length === 1
+    }
+    const te = (e) => {
+      if (!on || window.innerWidth > 1000) return
+      const t0 = e.changedTouches[0]
+      const dx = t0.clientX - sx, dy = Math.abs(t0.clientY - sy)
+      on = false
+      const g = gest.current
+      if (dy > 60 || g.sidePinned) return
+      if (dx > 70 && sx < 28) (g.hasNote && window.innerWidth <= 720 ? g.back() : setSideOpen(true))
+      else if (dx < -70 && g.sideOpen) setSideOpen(false)
+    }
+    window.addEventListener('touchstart', ts, { passive: true })
+    window.addEventListener('touchend', te, { passive: true })
+    return () => { window.removeEventListener('touchstart', ts); window.removeEventListener('touchend', te) }
+  }, [])
+
   // render -------------------------------------------------------------------
   if (user === undefined) {
     return (
@@ -645,6 +669,34 @@ function Main() {
   return (
     <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
+
+      {!sidePinned && (
+        <>
+          {view === 'notes' && !activeNote && (
+            <button className="fab" onClick={() => newNote()} aria-label={t('newNote')}>
+              <Icon name="plus" size={26} />
+            </button>
+          )}
+          <nav className="tabbar">
+            <button className={view === 'notes' ? 'on' : ''} onClick={() => { setView('notes'); setActiveId(null) }}>
+              <Icon name="notes" size={22} />
+              <span>{t('allNotes')}</span>
+            </button>
+            <button className={view === 'board' ? 'on' : ''} onClick={() => { setView('board'); setActiveId(null) }}>
+              <Icon name="board" size={22} />
+              <span>{t('board')}</span>
+            </button>
+            <button className={view === 'graph' ? 'on' : ''} onClick={() => setView('graph')}>
+              <Icon name="graph" size={22} />
+              <span>{t('graph')}</span>
+            </button>
+            <button onClick={() => setSideOpen(true)}>
+              <Icon name="menu" size={22} />
+              <span>{t('menu')}</span>
+            </button>
+          </nav>
+        </>
+      )}
 
       <aside className="side">
         <div className="brand">
@@ -864,7 +916,7 @@ function Main() {
               ))}
             </div>
           )}
-          <button className="icon-btn" onClick={() => newNote()} title={t('newNote')}>
+          <button className="icon-btn top-plus" onClick={() => newNote()} title={t('newNote')}>
             <Icon name="plus" />
           </button>
         </header>

@@ -1382,4 +1382,54 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .shell, .list, .main { transition: background-color 0.25s ease; }
 
 .logo-wrap { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
-.credit { font-size: 10px; color: var(--muted); letter-spacing: 0.02em; margin-top: 2px; }
+.credit { font-size: 14px; font-weight: 700; color: var(--honey); letter-spacing: 0.01em; margin-top: 3px; }
+
+/* ---------- phone: app-like layout ---------- */
+.fab, .tabbar { display: none; }
+@media (max-width: 720px) {
+  .side:not(.x) { box-shadow: none; }
+  .side-open .side { box-shadow: var(--shadow); }
+  .shell { --tab-h: 58px; }
+  .shell:not(.side-pinned) .list,
+  .shell:not(.side-pinned).is-graph .main { padding-bottom: calc(var(--tab-h) + 4px); }
+  .shell.has-note .main { padding-bottom: 0; }
+  .shell:not(.side-pinned) .only-mid { display: none !important; }
+  .shell:not(.side-pinned) .top-plus { display: none; }
+  .shell:not(.side-pinned) .list-head { padding: 14px 18px 4px; align-items: flex-end; }
+  .shell:not(.side-pinned) .list-title h2 { font-size: 34px; letter-spacing: -0.01em; }
+  .shell:not(.side-pinned) .list-title .muted { font-size: 14px; }
+  .list-search { margin: 6px 14px 10px; padding: 11px 14px; border-radius: 14px; }
+  .cards { padding: 0 14px 90px; gap: 8px; }
+  .card { padding: 14px 16px; min-height: 64px; border-radius: 16px; }
+  .card-top strong { font-size: 16.5px; }
+  .card p { font-size: 14px; -webkit-line-clamp: 2; }
+  .icon-btn { min-width: 44px; min-height: 44px; }
+  .ed-bar { padding: 6px 8px; min-height: 52px; }
+  .ed-page { padding: 14px 18px 96px; }
+
+  .shell:not(.side-pinned) .fab {
+    display: grid; place-items: center; position: fixed; z-index: 30;
+    right: calc(18px + env(safe-area-inset-right)); bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom));
+    width: 58px; height: 58px; border-radius: 20px; background: var(--honey); color: var(--on-accent);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28); transition: transform 0.12s ease;
+  }
+  .fab:active { transform: scale(0.92); }
+  .shell:not(.side-pinned) .tabbar {
+    display: flex; position: fixed; z-index: 29; left: 0; right: 0; bottom: 0;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+  }
+  .shell.has-note:not(.side-pinned) .tabbar { display: none; }
+  .tabbar button {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 0; font-size: 11px; font-weight: 600; color: var(--muted); border-radius: 12px;
+  }
+  .tabbar button.on { color: var(--honey-strong); }
+  .tabbar button:active { background: var(--honey-soft); }
+  .shell:not(.side-pinned) .side { padding-top: calc(16px + env(safe-area-inset-top)); }
+  .nav button, .nav .sub { min-height: 44px; }
+  .overlay { align-items: flex-end; padding: 0; }
+  .overlay .dialog { width: 100%; max-width: none; border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); animation: sheet 0.22s ease; }
+}
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } }
