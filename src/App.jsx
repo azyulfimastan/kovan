@@ -80,6 +80,8 @@ function Main() {
   const [folders, setFolders] = useState([])
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderMenu, setFolderMenu] = useState(false)
+  const [moveId, setMoveId] = useState(null)
+  const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
   const [folderName, setFolderName] = useState('')
   const [newWsInvite, setNewWsInvite] = useState(true)
   const [user, setUser] = useState(undefined) // undefined = checking, null = signed out
@@ -960,7 +962,22 @@ function Main() {
               <button
                 className={`card ${n.id === activeId ? 'on' : ''} ${n.folder_id ? 'has-c' : ''}`}
                 style={n.folder_id ? { '--c': folderColor(folders.find((f) => f.id === n.folder_id)) } : undefined}
-                onClick={() => openNote(n.id)}
+                onClick={() => {
+                  if (lp.current.fired) { lp.current.fired = false; return }
+                  openNote(n.id)
+                }}
+                onContextMenu={(e) => { e.preventDefault(); setMoveId(n.id) }}
+                onTouchStart={(e) => {
+                  lp.current.fired = false
+                  lp.current.x = e.touches[0].clientX; lp.current.y = e.touches[0].clientY
+                  clearTimeout(lp.current.t)
+                  lp.current.t = setTimeout(() => { lp.current.fired = true; navigator.vibrate?.(15); setMoveId(n.id) }, 450)
+                }}
+                onTouchMove={(e) => {
+                  if (Math.abs(e.touches[0].clientX - lp.current.x) > 8 || Math.abs(e.touches[0].clientY - lp.current.y) > 8) clearTimeout(lp.current.t)
+                }}
+                onTouchEnd={() => clearTimeout(lp.current.t)}
+                onTouchCancel={() => clearTimeout(lp.current.t)}
               >
                 <div className="card-top">
                   <strong>{n.title || t('untitled')}</strong>
@@ -1138,6 +1155,32 @@ function Main() {
           </form>
         </div>
       )}
+
+      {moveId && (() => {
+        const mn = notes.find((n) => n.id === moveId)
+        if (!mn) return null
+        const pick = (fid) => { edit(mn.id, { folder_id: fid }, true); setMoveId(null) }
+        return (
+          <div className="overlay" onMouseDown={() => setMoveId(null)}>
+            <div className="dialog small move-sheet" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="dlg-head">
+                <h3>{t('moveFolder')}</h3>
+              </div>
+              <p className="muted move-title">{mn.title || t('untitled')}</p>
+              <div className="move-list">
+                <button className={!mn.folder_id ? 'on' : ''} onClick={() => pick(null)}>
+                  <Icon name="notes" size={16} /> {t('noFolder')}
+                </button>
+                {folders.map((f) => (
+                  <button key={f.id} className={mn.folder_id === f.id ? 'on' : ''} onClick={() => pick(f.id)}>
+                    <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {dialog === 'newws' && (
         <div className="overlay" onMouseDown={() => setDialog(null)}>

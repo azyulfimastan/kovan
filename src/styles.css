@@ -1455,3 +1455,10 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .folder-menu button.on { background: var(--honey-soft); color: var(--honey-strong); }
 .folder-menu button.add { color: var(--muted); }
 .folder-menu .f-dot { cursor: inherit; }
+
+.move-title { margin: -4px 0 8px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
+.move-list button { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-radius: 12px; text-align: left; font-weight: 600; font-size: 15px; background: var(--panel2); color: var(--ink); }
+.move-list button.on { background: var(--honey-soft); color: var(--honey-strong); }
+.move-list .f-dot { cursor: inherit; }
+.card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
