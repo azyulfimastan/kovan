@@ -1,0 +1,217 @@
+import { createClient } from '@supabase/supabase-js'
+
+const url = import.meta.env.VITE_SUPABASE_URL
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+// When Supabase is not configured the app runs in "local mode":
+// one private notebook stored in this browser. Everything else is identical.
+export const cloud = Boolean(url && key)
+
+const sb = cloud
+  ? createClient(url, key, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } })
+  : null
+
+const WS_COLS = 'id,name,invite_code,owner_id'
+
+function mapUser(u) {
+  if (!u) return null
+  const m = u.user_metadata || {}
+  return {
+    id: u.id,
+    email: u.email || '',
+    name: m.full_name || m.name || u.email || '',
+    avatar: m.avatar_url || m.picture || '',
+  }
+}
+
+const ok = ({ data, error }) => {
+  if (error) throw error
+  return data
+}
+
+export const cloudStore = {
+  async getUser() {
+    const { data } = await sb.auth.getSession()
+    return mapUser(data.session?.user)
+  },
+  onAuth(cb) {
+    const { data } = sb.auth.onAuthStateChange((_e, s) => cb(mapUser(s?.user)))
+    return () => data.subscription.unsubscribe()
+  },
+  async signIn() {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    })
+    if (error) throw error
+  },
+  async signOut() {
+    await sb.auth.signOut()
+  },
+
+  async listWorkspaces() {
+    return ok(await sb.from('workspaces').select(WS_COLS).order('created_at'))
+  },
+  async createWorkspace(name) {
+    return ok(await sb.from('workspaces').insert({ name }).select(WS_COLS).single())
+  },
+  async joinWorkspace(code) {
+    return ok(await sb.rpc('join_workspace', { code }))
+  },
+  async rotateInvite(id) {
+    return ok(await sb.rpc('rotate_invite', { ws: id }))
+  },
+  async getMembers(id) {
+    return ok(await sb.from('members').select('user_id,email,name').eq('workspace_id', id).order('joined_at'))
+  },
+  async leaveWorkspace(id, uid) {
+    ok(await sb.from('members').delete().eq('workspace_id', id).eq('user_id', uid))
+  },
+  async deleteWorkspace(id) {
+    ok(await sb.from('workspaces').delete().eq('id', id))
+  },
+
+  async listNotes(wid) {
+    return ok(await sb.from('notes').select('*').eq('workspace_id', wid).order('updated_at', { ascending: false }))
+  },
+  async createNote(wid, n) {
+    return ok(
+      await sb
+        .from('notes')
+        .insert({ workspace_id: wid, title: n.title || '', body: n.body || '', tags: n.tags || [] })
+        .select('*')
+        .single(),
+    )
+  },
+  async updateNote(id, patch) {
+    ok(await sb.from('notes').update(patch).eq('id', id))
+  },
+  async deleteNote(id) {
+    ok(await sb.from('notes').delete().eq('id', id))
+  },
+
+  subscribe(wid, h) {
+    const f = `workspace_id=eq.${wid}`
+    const ch = sb
+      .channel('notes:' + wid)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notes', filter: f }, (p) => h.insert(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notes', filter: f }, (p) => h.update(p.new))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, (p) => h.remove(p.old.id))
+      .subscribe()
+    return () => {
+      sb.removeChannel(ch)
+    }
+  },
+  presence(wid, user, cb) {
+    const ch = sb.channel('presence:' + wid, { config: { presence: { key: user.id } } })
+    ch.on('presence', { event: 'sync' }, () => {
+      const s = ch.presenceState()
+      cb(
+        Object.entries(s).map(([id, metas]) => ({
+          id,
+          name: metas[0]?.name || '',
+          avatar: metas[0]?.avatar || '',
+        })),
+      )
+    }).subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') await ch.track({ name: user.name, avatar: user.avatar })
+    })
+    return () => {
+      sb.removeChannel(ch)
+    }
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Local mode
+// ---------------------------------------------------------------------------
+const LS = 'kovan.local.v1'
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS))
+    if (d && Array.isArray(d.notes)) return d
+  } catch {}
+  return { notes: [] }
+}
+function save(d) {
+  try {
+    localStorage.setItem(LS, JSON.stringify(d))
+  } catch {}
+}
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())
+
+export const localStore = {
+  async getUser() {
+    return { id: 'local', email: '', name: '', avatar: '' }
+  },
+  onAuth() {
+    return () => {}
+  },
+  async signIn() {},
+  async signOut() {},
+
+  async listWorkspaces() {
+    const d = load()
+    return [{ id: 'local', name: d.name || '', invite_code: null, owner_id: 'local', local: true }]
+  },
+  async createWorkspace(name) {
+    const d = load()
+    d.name = name
+    save(d)
+    return { id: 'local', name, invite_code: null, owner_id: 'local', local: true }
+  },
+  async joinWorkspace() {
+    throw new Error('local')
+  },
+  async rotateInvite() {
+    return null
+  },
+  async getMembers() {
+    return []
+  },
+  async leaveWorkspace() {},
+  async deleteWorkspace() {},
+
+  async listNotes() {
+    return load().notes.slice().sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+  },
+  async createNote(wid, n) {
+    const d = load()
+    const now = new Date().toISOString()
+    const note = {
+      id: uid(),
+      workspace_id: 'local',
+      title: n.title || '',
+      body: n.body || '',
+      tags: n.tags || [],
+      pinned: false,
+      created_at: now,
+      updated_at: now,
+    }
+    d.notes.push(note)
+    save(d)
+    return note
+  },
+  async updateNote(id, patch) {
+    const d = load()
+    const i = d.notes.findIndex((x) => x.id === id)
+    if (i >= 0) {
+      d.notes[i] = { ...d.notes[i], ...patch, updated_at: new Date().toISOString() }
+      save(d)
+    }
+  },
+  async deleteNote(id) {
+    const d = load()
+    d.notes = d.notes.filter((x) => x.id !== id)
+    save(d)
+  },
+  subscribe() {
+    return () => {}
+  },
+  presence() {
+    return () => {}
+  },
+}
+
+export const store = cloud ? cloudStore : localStore
