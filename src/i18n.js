@@ -114,6 +114,7 @@ const D = {
     typing: '{name} is typing…',
     uploading: 'Uploading…',
     pinMenu: 'Keep menu open',
+    membersOnline: '{n} members · {o} online',
   },
   tr: {
     tagline: 'Notlar, birlikte.',
@@ -222,6 +223,7 @@ const D = {
     typing: '{name} yazıyor…',
     uploading: 'Yükleniyor…',
     pinMenu: 'Menüyü sabitle',
+    membersOnline: '{n} üye · {o} çevrimiçi',
   },
   pl: {
     tagline: 'Notatki, razem.',
@@ -330,6 +332,7 @@ const D = {
     typing: '{name} pisze…',
     uploading: 'Przesyłanie…',
     pinMenu: 'Przypnij menu',
+    membersOnline: '{n} członków · {o} online',
   },
 }
 

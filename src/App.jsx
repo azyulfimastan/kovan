@@ -86,6 +86,7 @@ function Main() {
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState('saved')
   const [peers, setPeers] = useState([])
+  const [members, setMembers] = useState([])
   const [dialog, setDialog] = useState(null) // 'share' | 'newws'
   const [newWsName, setNewWsName] = useState('')
   const [palette, setPalette] = useState(false)
@@ -304,6 +305,19 @@ function Main() {
       setPeers([])
     }
   }, [wid, user?.id])
+
+  // everyone in the room (online ones get a green dot)
+  const loadMembers = useCallback(() => {
+    if (!cloud || !wid) return
+    store.getMembers(wid).then(setMembers).catch(() => {})
+  }, [wid])
+  useEffect(() => {
+    setMembers([])
+    loadMembers()
+  }, [loadMembers])
+  useEffect(() => {
+    if (peers.some((p) => !members.some((m) => m.user_id === p.id))) loadMembers()
+  }, [peers])
 
   // live co-editing of the open note ------------------------------------------
   useEffect(() => {
@@ -526,6 +540,19 @@ function Main() {
         {cloud && ws && (
           <button className="btn soft wide" onClick={() => setDialog('share')}>
             <Icon name="users" size={16} /> {t('inviteFriends')}
+          </button>
+        )}
+        {cloud && members.length > 0 && (
+          <button className="member-strip" onClick={() => setDialog('share')} title={t('members')}>
+            <span className="avs">
+              {members.slice(0, 6).map((m) => (
+                <span key={m.user_id} className={`avatar sm ${peers.some((p) => p.id === m.user_id) ? 'on' : ''}`} title={m.name || m.email}>
+                  {(m.name || m.email || '?').slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+              {members.length > 6 && <span className="avatar sm more">+{members.length - 6}</span>}
+            </span>
+            <span className="muted">{t('membersOnline', { n: String(members.length), o: String(Math.max(1, peers.length)) })}</span>
           </button>
         )}
         <button className="btn primary wide" onClick={() => newNote()}>

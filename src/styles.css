@@ -1287,3 +1287,10 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   body { -webkit-user-select: none; user-select: none; }
   input, textarea, .prose, .ed-body { -webkit-user-select: text; user-select: text; }
 }
+
+.member-strip { display: flex; align-items: center; gap: 10px; width: 100%; padding: 4px 6px; border-radius: 10px; text-align: left; font-size: 13px; }
+.member-strip:hover { background: var(--honey-soft); }
+.member-strip .avs { display: inline-flex; }
+.member-strip .avatar { margin-left: -6px; border: 2px solid var(--panel2); position: relative; }
+.member-strip .avatar:first-child { margin-left: 0; }
+.avatar.on::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; background: #3fb673; border: 2px solid var(--panel2); }
