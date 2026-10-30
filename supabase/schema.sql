@@ -341,3 +341,5 @@ begin
   return new_code;
 end;
 $$;
+
+alter table public.notes add column if not exists images text[] not null default '{}';

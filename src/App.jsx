@@ -775,6 +775,7 @@ function Main() {
             onOpenNote={openNote}
             typing={typing}
             onUpload={uploadImage}
+            onImages={(arr) => edit(activeNote.id, { images: arr }, true)}
             folders={folders}
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
             onBack={() => setActiveId(null)}

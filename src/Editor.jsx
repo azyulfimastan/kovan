@@ -41,6 +41,7 @@ export default function Editor({
   onOpenNote,
   typing = '',
   onUpload,
+  onImages,
   folders = [],
   onFolder,
   onBack,
@@ -77,12 +78,22 @@ export default function Editor({
   }, [pop, notes, note.id, t, lang])
 
   const words = useMemo(() => (note.body.trim() ? note.body.trim().split(/\s+/).length : 0), [note.body])
-  const images = useMemo(() => [...note.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)\n?/g)].map((m) => ({ url: m[1], raw: m[0] })), [note.body])
+  const attached = note.images || []
+  const legacy = useMemo(() => [...note.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)\n?/g)].map((m) => ({ url: m[1], raw: m[0] })), [note.body])
+  const [lightbox, setLightbox] = useState(null)
+  useEffect(() => {
+    if (!lightbox) return
+    const k = (e) => e.key === 'Escape' && setLightbox(null)
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [lightbox])
   const html = useMemo(() => (mode === 'preview' ? renderMarkdown(note.body, hasTitle) : ''), [mode, note.body, hasTitle])
 
   // Cursor position to restore right after the next render (set synchronously,
   // so fast typing can never race with it).
   const selRef = useRef(null)
+  const imagesRef = useRef(note.images || [])
+  imagesRef.current = note.images || []
   const bodyRef = useRef(note.body)
   bodyRef.current = note.body
   const expectBody = useRef(note.body)
@@ -201,6 +212,7 @@ export default function Editor({
   function onPreviewClick(e) {
     const wl = e.target.closest('[data-wl]')
     if (wl) return onOpenTitle(wl.dataset.wl)
+    if (e.target.tagName === 'IMG') return setLightbox(e.target.src)
     const cb = e.target.closest('[data-cb]')
     if (cb) onChange({ body: toggleCheckbox(note.body, Number(cb.dataset.cb)) })
   }
@@ -213,12 +225,8 @@ export default function Editor({
       for (const f of imgs) {
         const url = await onUpload(f)
         if (!url) continue
-        const v = bodyRef.current
-        const pos = Math.min(selMemo.current.e, v.length)
-        const ins = (pos > 0 && v[pos - 1] !== '\n' ? '\n' : '') + `![](${url})\n`
-        setMode('edit')
-        setBody(v.slice(0, pos) + ins + v.slice(pos), pos + ins.length)
-        selMemo.current = { s: pos + ins.length, e: pos + ins.length }
+        imagesRef.current = [...imagesRef.current, url]
+        onImages(imagesRef.current)
       }
     } finally {
       setUploading(false)
@@ -338,25 +346,36 @@ export default function Editor({
             <div className="prose" onClick={onPreviewClick} dangerouslySetInnerHTML={{ __html: html || '<p class="muted">…</p>' }} />
           )}
 
-          {mode === 'edit' && images.length > 0 && (
+          {(attached.length > 0 || (mode === 'edit' && legacy.length > 0)) && (
             <div className="ed-images">
-              {images.map((im, i) => (
-                <figure key={i}>
-                  <a href={im.url} target="_blank" rel="noreferrer">
-                    <img src={im.url} alt="" loading="lazy" />
-                  </a>
-                  <button
-                    className="img-x"
-                    title={t('delete')}
-                    onClick={() => {
-                      expectBody.current = ''
-                      onChange({ body: note.body.replace(im.raw, '') })
-                    }}
-                  >
+              {attached.map((url, i) => (
+                <figure key={'a' + i}>
+                  <button className="img-open" onClick={() => setLightbox(url)}>
+                    <img src={url} alt="" loading="lazy" />
+                  </button>
+                  <button className="img-x" title={t('delete')} onClick={() => onImages(attached.filter((_, j) => j !== i))}>
                     ×
                   </button>
                 </figure>
               ))}
+              {mode === 'edit' &&
+                legacy.map((im, i) => (
+                  <figure key={'l' + i}>
+                    <button className="img-open" onClick={() => setLightbox(im.url)}>
+                      <img src={im.url} alt="" loading="lazy" />
+                    </button>
+                    <button
+                      className="img-x"
+                      title={t('delete')}
+                      onClick={() => {
+                        expectBody.current = ''
+                        onChange({ body: note.body.replace(im.raw, '') })
+                      }}
+                    >
+                      ×
+                    </button>
+                  </figure>
+                ))}
             </div>
           )}
 
@@ -382,6 +401,15 @@ export default function Editor({
           </section>
         </div>
       </div>
+
+      {lightbox && (
+        <div className="lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" />
+          <button className="lb-x" onClick={() => setLightbox(null)} title={t('close')}>
+            ×
+          </button>
+        </div>
+      )}
 
       {pop && items.length > 0 && mode === 'edit' && (
         <ul className="pop" role="listbox">
