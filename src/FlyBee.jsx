@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-const N = 16
+const N = 16 // bees added per tap
+const MAX = 400
 const rnd = (a, b) => a + Math.random() * (b - a)
 
 // One bee wanders around the screen. Touch it: for 5 seconds a nervous swarm erupts from it.
 export default function FlyBee() {
   const mainEl = useRef(null)
   const swarmEls = useRef([])
-  const [swarm, setSwarm] = useState(0) // run id, 0 = none
+  const [count, setCount] = useState(0)
   const st = useRef({ active: false, bees: [], until: 0, main: null })
   const [ok] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 
@@ -58,7 +59,8 @@ export default function FlyBee() {
         })
         if (left <= 0) {
           s.active = false
-          setSwarm(0)
+          s.bees = []
+          setCount(0)
         }
       }
       raf = requestAnimationFrame(tick)
@@ -69,16 +71,17 @@ export default function FlyBee() {
 
   function burst() {
     const s = st.current
-    if (s.active || !s.main) return
+    if (!s.main) return
     const m = s.main
-    s.bees = Array.from({ length: N }, () => {
+    const add = Array.from({ length: Math.min(N, MAX - s.bees.length) }, () => {
       const a = rnd(0, Math.PI * 2), v = rnd(300, 800)
       return { x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, max: rnd(500, 950), face: 1 }
     })
+    s.bees = s.bees.concat(add)
     s.until = performance.now() + 5000
     s.active = true
-    setSwarm((n) => n + 1)
-    navigator.vibrate?.(30)
+    setCount(s.bees.length)
+    navigator.vibrate?.(20)
   }
 
   if (!ok) return null
@@ -87,12 +90,11 @@ export default function FlyBee() {
       <div className="fly-bee main" ref={mainEl} onClick={burst} role="button" aria-label="bee">
         <Bee size={34} />
       </div>
-      {swarm > 0 &&
-        Array.from({ length: N }, (_, i) => (
-          <div key={swarm + ':' + i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
-            <Bee size={24} />
-          </div>
-        ))}
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
+          <Bee size={24} />
+        </div>
+      ))}
     </>
   )
 }

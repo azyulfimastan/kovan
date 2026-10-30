@@ -1004,17 +1004,6 @@ function Main() {
               />{' '}
               <span className="f-name">{f.name}</span>
               <em>{notes.filter((n) => n.folder_id === f.id).length}</em>
-              <span
-                className="f-del"
-                role="button"
-                title={t('delete')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  removeFolder(f)
-                }}
-              >
-                <Icon name="x" size={14} />
-              </span>
             </button>
           ))}
           {!foldersOpen && !drag && <span className="sub muted fold-hint">{folders.length} {t('folders')}</span>}
