@@ -394,6 +394,9 @@ export default function Editor({
         <button className="icon-btn danger" onClick={onDelete} title={t('delete')}>
           <Icon name="trash" />
         </button>
+      <button className="icon-btn ed-close" onClick={onBack} title={t('close')}>
+          <Icon name="x" />
+        </button>
       </header>
 
       <div className="ed-scroll">

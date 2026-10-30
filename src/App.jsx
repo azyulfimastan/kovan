@@ -1053,8 +1053,8 @@ function Main() {
             columns={columns}
             members={members}
             onCard={setCard}
-            boardBack={boardFrom ? () => { setView('board'); setActiveId(null); setBoardFrom(false) } : null}
-            onBack={() => (boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null))}
+            boardBack={boardFrom ? () => { flushAll(); setView('board'); setActiveId(null); setBoardFrom(false) } : null}
+            onBack={() => (flushAll(), boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null))}
           />
         ) : (
           <div className="blank">

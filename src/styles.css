@@ -1433,3 +1433,4 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .overlay .dialog { width: 100%; max-width: none; border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); animation: sheet 0.22s ease; }
 }
 @keyframes sheet { from { transform: translateY(40px); opacity: 0; } }
+@media (max-width: 720px) { .ed-bar > .only-narrow { display: none !important; } }
