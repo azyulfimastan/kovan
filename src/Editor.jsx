@@ -346,17 +346,9 @@ export default function Editor({
             ← {t('board')}
           </button>
         )}
-        <div className="seg">
-          <button className={mode === 'edit' ? 'on' : ''} onClick={() => setMode('edit')}>
-            <Icon name="edit" size={15} /> {t('edit')}
-          </button>
-          <button className={mode === 'preview' ? 'on' : ''} onClick={() => setMode('preview')}>
-            <Icon name="eye" size={15} /> {t('preview')}
-          </button>
-        </div>
         <span className="grow" />
         {typing && <span className="typing">✎ {t('typing', { name: typing })}</span>}
-        {folders.length > 0 && (
+        {(
           <select className="ed-folder" value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
             <option value="">{t('noFolder')}</option>
             {folders.map((f) => (
@@ -415,52 +407,6 @@ export default function Editor({
               }
             }}
           />
-
-          {(columns.length > 0 || note.column_id || note.due || note.label) && (
-            <div className="card-props">
-              <label>
-                <span>{t('inList')}</span>
-                <select value={note.column_id || ''} onChange={(e) => onCard({ column_id: e.target.value || null })}>
-                  <option value="">{t('inbox')}</option>
-                  {columns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>{t('dueDate')}</span>
-                <input type="date" value={note.due || ''} onChange={(e) => onCard({ due: e.target.value || null })} />
-              </label>
-              {members.length > 1 && (
-                <label>
-                  <span>{t('assignee')}</span>
-                  <select value={note.assignee || ''} onChange={(e) => onCard({ assignee: e.target.value || null })}>
-                    <option value="">{t('unassigned')}</option>
-                    {members.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.name || m.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <div className="label-pick" role="radiogroup" aria-label={t('colorLabel')}>
-                {Object.entries(LABELS).map(([k, c]) => (
-                  <button
-                    key={k}
-                    role="radio"
-                    aria-checked={note.label === k}
-                    className={note.label === k ? 'on' : ''}
-                    style={{ background: c }}
-                    title={k}
-                    onClick={() => onCard({ label: note.label === k ? null : k })}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
 
           {mode === 'edit' ? (
             <div className="ed-wrap">

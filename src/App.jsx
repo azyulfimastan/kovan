@@ -99,7 +99,7 @@ function Main() {
   const [view, setView] = useState('notes')
   const [filter, setFilter] = useState({ kind: 'all' })
   const [query, setQuery] = useState('')
-  const [mode, setModeState] = useState(() => lsGet('kovan.mode') || 'edit')
+  const [mode, setModeState] = useState('edit')
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState('saved')
   const [peers, setPeers] = useState([])
