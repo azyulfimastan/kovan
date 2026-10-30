@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-const N = 80 // bees added per tap
-const MAX = 600
+const N = 700 // bees per tap
+const MAX = 700
 const rnd = (a, b) => a + Math.random() * (b - a)
 
 // Lightweight bee for the swarm (no gradients/clip paths/ids, so hundreds stay smooth).
