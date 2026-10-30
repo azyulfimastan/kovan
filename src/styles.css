@@ -1434,3 +1434,4 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 }
 @keyframes sheet { from { transform: translateY(40px); opacity: 0; } }
 @media (max-width: 720px) { .ed-bar > .only-narrow { display: none !important; } }
+@media (max-width: 720px) { .pin-side { display: none !important; } }

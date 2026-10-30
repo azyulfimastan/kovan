@@ -110,7 +110,7 @@ function Main() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
-  const [sidePinned, setSidePinned] = useState(() => lsGet('kovan.pin') === '1')
+  const [sidePinned, setSidePinned] = useState(() => window.innerWidth > 720 && lsGet('kovan.pin') === '1')
   const closeSide = () => !sidePinned && setSideOpen(false)
   const togglePin = () =>
     setSidePinned((p) => {
