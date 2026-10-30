@@ -8,6 +8,7 @@
   --honey: #f2a900;
   --honey-strong: #d98f00;
   --honey-soft: #fff0c9;
+  --on-accent: #2a1d00;
   --hex-core: #1d1a14;
   --danger: #c0412b;
   --shadow: 0 10px 40px rgba(60, 40, 0, 0.14);
@@ -26,6 +27,7 @@
   --honey: #ffbf2f;
   --honey-strong: #ffd061;
   --honey-soft: #3a2f10;
+  --on-accent: #2a1d00;
   --hex-core: #14120e;
   --danger: #ef7a62;
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
@@ -201,11 +203,11 @@ kbd {
 }
 .nav button.on {
   background: var(--honey);
-  color: #2a1d00;
+  color: var(--on-accent);
   font-weight: 600;
 }
 .nav button.on em {
-  color: #2a1d00;
+  color: var(--on-accent);
   opacity: 0.7;
 }
 .tag-block h5 {
@@ -273,7 +275,7 @@ kbd {
   display: inline-grid;
   place-items: center;
   background: var(--honey);
-  color: #2a1d00;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 13px;
   flex: none;
@@ -351,7 +353,7 @@ kbd {
 .btn.primary {
   background: var(--honey);
   border-color: var(--honey);
-  color: #2a1d00;
+  color: var(--on-accent);
   box-shadow: 0 2px 0 var(--honey-strong);
 }
 .btn.primary:hover {
@@ -832,7 +834,7 @@ kbd {
   top: 1.5px;
   width: 5px;
   height: 10px;
-  border: solid #2a1d00;
+  border: solid var(--on-accent);
   border-width: 0 2.2px 2.2px 0;
   transform: rotate(45deg);
 }
@@ -1207,3 +1209,50 @@ kbd {
     padding-top: 8vh;
   }
 }
+
+/* ---------- accent colors ---------- */
+:root[data-accent='rose'] { --honey: #e5527a; --honey-strong: #c93f66; --honey-soft: #ffe1ea; --on-accent: #fff; }
+:root[data-accent='ocean'] { --honey: #1f84dc; --honey-strong: #1670bd; --honey-soft: #d8ebff; --on-accent: #fff; }
+:root[data-accent='forest'] { --honey: #2c9a58; --honey-strong: #237a46; --honey-soft: #d9f2e3; --on-accent: #fff; }
+:root[data-accent='violet'] { --honey: #7a5af0; --honey-strong: #6444d4; --honey-soft: #e6defd; --on-accent: #fff; }
+:root[data-accent='graphite'] { --honey: #3d3d3d; --honey-strong: #222; --honey-soft: #e6e6e6; --on-accent: #fff; }
+:root[data-theme='dark'][data-accent='rose'] { --honey: #ff7a9e; --honey-strong: #ff9db8; --honey-soft: #3d1a26; --on-accent: #2a0a14; }
+:root[data-theme='dark'][data-accent='ocean'] { --honey: #4ea8ff; --honey-strong: #7dc0ff; --honey-soft: #12283d; --on-accent: #06182a; }
+:root[data-theme='dark'][data-accent='forest'] { --honey: #4cc17f; --honey-strong: #7bd8a3; --honey-soft: #12301f; --on-accent: #06200f; }
+:root[data-theme='dark'][data-accent='violet'] { --honey: #9f86ff; --honey-strong: #bba8ff; --honey-soft: #251c45; --on-accent: #140a33; }
+:root[data-theme='dark'][data-accent='graphite'] { --honey: #d4d4d4; --honey-strong: #fff; --honey-soft: #2e2e2e; --on-accent: #111; }
+
+.swatches { display: flex; gap: 8px; align-items: center; padding: 2px 4px; }
+.swatches .sw {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--line); cursor: pointer;
+}
+.swatches .sw.on { box-shadow: 0 0 0 2px var(--ink); }
+.swatches .sw-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+
+.btn.soft { background: var(--honey-soft); border-color: transparent; color: var(--ink); }
+.btn.soft:hover { border-color: var(--honey); }
+
+.folder-block h5 {
+  display: flex; align-items: center; margin: 8px 4px; font-size: 11px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.folder-block h5 button { margin-left: auto; color: var(--muted); display: inline-flex; }
+.folder-block h5 button:hover { color: var(--ink); }
+.nav .folder-item { position: relative; }
+.nav .folder-item .f-del {
+  display: none; margin-left: 6px; padding: 0 2px; opacity: 0.7; border-radius: 6px;
+}
+.nav .folder-item:hover .f-del { display: inline-flex; }
+.nav .folder-item:hover em { display: none; }
+.folder-input {
+  width: 100%; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--honey);
+  background: var(--panel); margin-bottom: 4px;
+}
+.ed-folder {
+  appearance: none; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 5px 10px; font-size: 13px; color: var(--ink); max-width: 150px;
+  text-overflow: ellipsis;
+}
+.check-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; font-weight: 500; }
+.check-row input { width: auto; accent-color: var(--honey); }

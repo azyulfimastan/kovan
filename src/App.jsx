@@ -33,6 +33,20 @@ function initialTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+const ACCENTS = [
+  { id: 'honey', color: '#f2a900', key: 'colHoney' },
+  { id: 'rose', color: '#e5527a', key: 'colRose' },
+  { id: 'ocean', color: '#1f84dc', key: 'colOcean' },
+  { id: 'forest', color: '#2c9a58', key: 'colForest' },
+  { id: 'violet', color: '#7a5af0', key: 'colViolet' },
+  { id: 'graphite', color: '#3d3d3d', key: 'colGraphite' },
+]
+
+function initialAccent() {
+  const s = lsGet('kovan.accent')
+  return ACCENTS.some((a) => a.id === s) ? s : 'honey'
+}
+
 export default function App() {
   const [lang, setLangState] = useState(detectLang)
   const t = useMemo(() => makeT(lang), [lang])
@@ -65,6 +79,11 @@ function Main() {
   tRef.current = t
 
   const [theme, setTheme] = useState(initialTheme)
+  const [accent, setAccent] = useState(initialAccent)
+  const [folders, setFolders] = useState([])
+  const [addingFolder, setAddingFolder] = useState(false)
+  const [folderName, setFolderName] = useState('')
+  const [newWsInvite, setNewWsInvite] = useState(true)
   const [user, setUser] = useState(undefined) // undefined = checking, null = signed out
   const userRef = useRef(null)
   userRef.current = user
@@ -104,9 +123,12 @@ function Main() {
   // theme
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    document.documentElement.dataset.accent = accent
     lsSet('kovan.theme', theme)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#14120e' : '#f2a900')
-  }, [theme])
+    lsSet('kovan.accent', accent)
+    const c = ACCENTS.find((a) => a.id === accent)?.color || '#f2a900'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#14120e' : c)
+  }, [theme, accent])
 
   // remember invite link before sign-in
   useEffect(() => {
@@ -220,10 +242,17 @@ function Main() {
     if (!wid || !user) return
     let alive = true
     setNotes([])
+    setFolders([])
+    setAddingFolder(false)
     setActiveId(null)
     setFilter({ kind: 'all' })
     setQuery('')
     setView('notes')
+
+    store
+      .listFolders(wid)
+      .then((f) => alive && setFolders(f))
+      .catch(() => {})
 
     store
       .listNotes(wid)
@@ -249,6 +278,12 @@ function Main() {
       remove: (id) => {
         setNotes((ns) => ns.filter((n) => n.id !== id))
         setActiveId((a) => (a === id ? null : a))
+      },
+      folderAdd: (f) => setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, { id: f.id, name: f.name }])),
+      folderRemove: (id) => {
+        setFolders((l) => l.filter((x) => x.id !== id))
+        setNotes((ns) => ns.map((n) => (n.folder_id === id ? { ...n, folder_id: null } : n)))
+        setFilter((f) => (f.kind === 'folder' && f.id === id ? { kind: 'all' } : f))
       },
     })
     const offP = store.presence(wid, user, setPeers)
@@ -278,7 +313,15 @@ function Main() {
   const visible = useMemo(() => {
     const q = norm(query)
     return notes
-      .filter((n) => (filter.kind === 'pinned' ? n.pinned : filter.kind === 'tag' ? (n.tags || []).includes(filter.tag) : true))
+      .filter((n) =>
+        filter.kind === 'pinned'
+          ? n.pinned
+          : filter.kind === 'tag'
+            ? (n.tags || []).includes(filter.tag)
+            : filter.kind === 'folder'
+              ? n.folder_id === filter.id
+              : true,
+      )
       .filter((n) => !q || norm(n.title).includes(q) || norm(n.body).includes(q))
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (a.updated_at < b.updated_at ? 1 : -1))
   }, [notes, filter, query])
@@ -293,7 +336,8 @@ function Main() {
   async function newNote(init = {}) {
     try {
       const body = init.body || ''
-      const n = await store.createNote(wid, { title: init.title || '', body, tags: extractTags(body) })
+      const folder_id = init.folder_id || (filter.kind === 'folder' ? filter.id : null)
+      const n = await store.createNote(wid, { title: init.title || '', body, tags: extractTags(body), folder_id })
       setNotes((ns) => [n, ...ns.filter((x) => x.id !== n.id)])
       setActiveId(n.id)
       setView('notes')
@@ -339,8 +383,36 @@ function Main() {
       welcome.current = w.id
       setWorkspaces((l) => [...l, w])
       setWid(w.id)
-      setDialog(null)
       setNewWsName('')
+      setDialog(cloud && newWsInvite ? 'share' : null)
+    } catch {
+      flash('error')
+    }
+  }
+
+  async function addFolder(e) {
+    e.preventDefault()
+    const name = folderName.trim()
+    setAddingFolder(false)
+    setFolderName('')
+    if (!name) return
+    try {
+      const f = await store.createFolder(wid, name)
+      setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, f]))
+      setFilter({ kind: 'folder', id: f.id })
+      setView('notes')
+    } catch {
+      flash('error')
+    }
+  }
+
+  async function removeFolder(f) {
+    if (!window.confirm(t('deleteFolderConfirm'))) return
+    try {
+      await store.deleteFolder(f.id)
+      setFolders((l) => l.filter((x) => x.id !== f.id))
+      setNotes((ns) => ns.map((n) => (n.folder_id === f.id ? { ...n, folder_id: null } : n)))
+      if (filter.kind === 'folder' && filter.id === f.id) setFilter({ kind: 'all' })
     } catch {
       flash('error')
     }
@@ -364,6 +436,7 @@ function Main() {
   const commands = [
     { id: 'new', icon: 'plus', label: t('newNote'), run: () => newNote() },
     { id: 'graph', icon: 'graph', label: t('graph'), run: () => setView((v) => (v === 'graph' ? 'notes' : 'graph')) },
+    { id: 'folder', icon: 'folder', label: t('newFolder'), run: () => setAddingFolder(true) },
     { id: 'theme', icon: theme === 'dark' ? 'sun' : 'moon', label: t('theme'), run: nextTheme },
     ...(cloud ? [{ id: 'share', icon: 'link', label: t('share'), run: () => setDialog('share') }] : []),
     ...LANGS.filter((l) => l.code !== lang).map((l) => ({ id: 'lang-' + l.code, icon: 'globe', label: l.label, run: () => setLang(l.code) })),
@@ -390,7 +463,14 @@ function Main() {
   }
   if (!user) return <Login />
 
-  const heading = filter.kind === 'pinned' ? t('pinned') : filter.kind === 'tag' ? '#' + filter.tag : t('allNotes')
+  const heading =
+    filter.kind === 'pinned'
+      ? t('pinned')
+      : filter.kind === 'tag'
+        ? '#' + filter.tag
+        : filter.kind === 'folder'
+          ? folders.find((f) => f.id === filter.id)?.name || t('allNotes')
+          : t('allNotes')
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
@@ -429,6 +509,11 @@ function Main() {
           )}
         </div>
 
+        {cloud && ws && (
+          <button className="btn soft wide" onClick={() => setDialog('share')}>
+            <Icon name="users" size={16} /> {t('inviteFriends')}
+          </button>
+        )}
         <button className="btn primary wide" onClick={() => newNote()}>
           <Icon name="plus" size={16} /> {t('newNote')}
         </button>
@@ -469,6 +554,57 @@ function Main() {
           </button>
         </nav>
 
+        <div className="folder-block">
+          <h5>
+            {t('folders')}
+            <button onClick={() => setAddingFolder(true)} title={t('newFolder')}>
+              <Icon name="plus" size={14} />
+            </button>
+          </h5>
+          {addingFolder && (
+            <form onSubmit={addFolder}>
+              <input
+                className="folder-input"
+                autoFocus
+                value={folderName}
+                maxLength={60}
+                placeholder={t('folderName')}
+                onChange={(e) => setFolderName(e.target.value)}
+                onBlur={() => !folderName.trim() && setAddingFolder(false)}
+                onKeyDown={(e) => e.key === 'Escape' && (setFolderName(''), setAddingFolder(false))}
+              />
+            </form>
+          )}
+          <nav className="nav">
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                className={`folder-item ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
+                onClick={() => {
+                  setFilter({ kind: 'folder', id: f.id })
+                  setView('notes')
+                  setActiveId(null)
+                  setSideOpen(false)
+                }}
+              >
+                <Icon name="folder" size={16} /> <span className="f-name">{f.name}</span>
+                <em>{notes.filter((n) => n.folder_id === f.id).length}</em>
+                <span
+                  className="f-del"
+                  role="button"
+                  title={t('delete')}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeFolder(f)
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                </span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
         {tagCounts.length > 0 && (
           <div className="tag-block">
             <h5>{t('tags')}</h5>
@@ -497,6 +633,20 @@ function Main() {
               </button>
             </div>
           )}
+          <div className="swatches" role="radiogroup" aria-label={t('accent')}>
+            <span className="sw-label">{t('accent')}</span>
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                role="radio"
+                aria-checked={accent === a.id}
+                className={`sw ${accent === a.id ? 'on' : ''}`}
+                style={{ background: a.color }}
+                title={t(a.key)}
+                onClick={() => setAccent(a.id)}
+              />
+            ))}
+          </div>
           <div className="foot-row">
             <div className="lang-row small">
               {LANGS.map((l) => (
@@ -595,6 +745,8 @@ function Main() {
             onOpenTitle={openTitle}
             onOpenNote={openNote}
             onTag={pickTag}
+            folders={folders}
+            onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
             onBack={() => setActiveId(null)}
           />
         ) : (
@@ -635,6 +787,15 @@ function Main() {
               <h3>{t('newNotebook')}</h3>
             </div>
             <input autoFocus value={newWsName} onChange={(e) => setNewWsName(e.target.value)} placeholder={t('notebookName')} maxLength={80} />
+            {cloud && (
+              <>
+                <label className="check-row">
+                  <input type="checkbox" checked={newWsInvite} onChange={(e) => setNewWsInvite(e.target.checked)} />
+                  {t('roomWith')}
+                </label>
+                <span className="muted">{t('roomSoloHint')}</span>
+              </>
+            )}
             <div className="dlg-foot">
               <button type="button" className="btn ghost" onClick={() => setDialog(null)}>
                 {t('cancel')}

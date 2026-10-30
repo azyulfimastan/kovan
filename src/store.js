@@ -71,6 +71,17 @@ export const cloudStore = {
     ok(await sb.from('workspaces').delete().eq('id', id))
   },
 
+  async listFolders(wid) {
+    const { data, error } = await sb.from('folders').select('id,name').eq('workspace_id', wid).order('created_at')
+    return error ? [] : data // folders table not installed yet -> no folders
+  },
+  async createFolder(wid, name) {
+    return ok(await sb.from('folders').insert({ workspace_id: wid, name }).select('id,name').single())
+  },
+  async deleteFolder(id) {
+    ok(await sb.from('folders').delete().eq('id', id))
+  },
+
   async listNotes(wid) {
     return ok(await sb.from('notes').select('*').eq('workspace_id', wid).order('updated_at', { ascending: false }))
   },
@@ -78,7 +89,7 @@ export const cloudStore = {
     return ok(
       await sb
         .from('notes')
-        .insert({ workspace_id: wid, title: n.title || '', body: n.body || '', tags: n.tags || [] })
+        .insert({ workspace_id: wid, title: n.title || '', body: n.body || '', tags: n.tags || [], ...(n.folder_id ? { folder_id: n.folder_id } : {}) })
         .select('*')
         .single(),
     )
@@ -97,6 +108,8 @@ export const cloudStore = {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notes', filter: f }, (p) => h.insert(p.new))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notes', filter: f }, (p) => h.update(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, (p) => h.remove(p.old.id))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'folders', filter: f }, (p) => h.folderAdd?.(p.new))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'folders' }, (p) => h.folderRemove?.(p.old.id))
       .subscribe()
     return () => {
       sb.removeChannel(ch)
@@ -173,6 +186,23 @@ export const localStore = {
   async leaveWorkspace() {},
   async deleteWorkspace() {},
 
+  async listFolders() {
+    return load().folders || []
+  },
+  async createFolder(wid, name) {
+    const d = load()
+    const f = { id: uid(), name }
+    d.folders = [...(d.folders || []), f]
+    save(d)
+    return f
+  },
+  async deleteFolder(id) {
+    const d = load()
+    d.folders = (d.folders || []).filter((f) => f.id !== id)
+    d.notes = d.notes.map((n) => (n.folder_id === id ? { ...n, folder_id: null } : n))
+    save(d)
+  },
+
   async listNotes() {
     return load().notes.slice().sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
   },
@@ -186,6 +216,7 @@ export const localStore = {
       body: n.body || '',
       tags: n.tags || [],
       pinned: false,
+      folder_id: n.folder_id || null,
       created_at: now,
       updated_at: now,
     }

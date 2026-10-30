@@ -40,6 +40,8 @@ export default function Editor({
   onOpenTitle,
   onOpenNote,
   onTag,
+  folders = [],
+  onFolder,
   onBack,
 }) {
   const { t, lang } = useI18n()
@@ -198,6 +200,16 @@ export default function Editor({
           </button>
         </div>
         <span className="grow" />
+        {folders.length > 0 && (
+          <select className="ed-folder" value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
+            <option value="">{t('noFolder')}</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        )}
         <span className={`save ${saveState}`}>{saveState === 'saving' ? t('saving') : t('saved')}</span>
         <button className={`icon-btn ${note.pinned ? 'active' : ''}`} onClick={onPin} title={note.pinned ? t('unpin') : t('pin')}>
           <Icon name="pin" />
