@@ -77,6 +77,7 @@ export default function Editor({
   }, [pop, notes, note.id, t, lang])
 
   const words = useMemo(() => (note.body.trim() ? note.body.trim().split(/\s+/).length : 0), [note.body])
+  const images = useMemo(() => [...note.body.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)\n?/g)].map((m) => ({ url: m[1], raw: m[0] })), [note.body])
   const html = useMemo(() => (mode === 'preview' ? renderMarkdown(note.body, hasTitle) : ''), [mode, note.body, hasTitle])
 
   // Cursor position to restore right after the next render (set synchronously,
@@ -335,6 +336,28 @@ export default function Editor({
             />
           ) : (
             <div className="prose" onClick={onPreviewClick} dangerouslySetInnerHTML={{ __html: html || '<p class="muted">…</p>' }} />
+          )}
+
+          {mode === 'edit' && images.length > 0 && (
+            <div className="ed-images">
+              {images.map((im, i) => (
+                <figure key={i}>
+                  <a href={im.url} target="_blank" rel="noreferrer">
+                    <img src={im.url} alt="" loading="lazy" />
+                  </a>
+                  <button
+                    className="img-x"
+                    title={t('delete')}
+                    onClick={() => {
+                      expectBody.current = ''
+                      onChange({ body: note.body.replace(im.raw, '') })
+                    }}
+                  >
+                    ×
+                  </button>
+                </figure>
+              ))}
+            </div>
           )}
 
           <footer className="ed-foot">

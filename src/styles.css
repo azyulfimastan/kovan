@@ -1297,3 +1297,8 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 .room-code { flex: 1; font: 600 26px/1 var(--serif); letter-spacing: 0.18em; text-align: center; padding: 12px 10px; border-radius: 12px; background: var(--honey-soft); color: var(--ink); }
 .code-input { font-size: 22px !important; letter-spacing: 0.12em; text-align: center; }
+
+.ed-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
+.ed-images figure { position: relative; margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--panel2); }
+.ed-images img { display: block; width: 100%; height: 130px; object-fit: cover; }
+.ed-images .img-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 16px; line-height: 1; }
