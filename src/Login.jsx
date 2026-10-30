@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HexLogo } from './icons'
+import { Bee, HexLogo, HoneyDrip } from './icons'
 import { LANGS, useI18n } from './i18n'
 import { store } from './store'
 
@@ -22,11 +22,18 @@ export default function Login() {
   return (
     <div className="login">
       <div className="login-card">
+        <HoneyDrip />
         <div className="login-hex">
           <HexLogo size={64} />
+          <span className="bee-orbit">
+            <span className="bee-bob">
+              <Bee size={34} />
+            </span>
+          </span>
         </div>
         <h1 className="logo-text">Kovan</h1>
         <p className="tagline">{t('tagline')}</p>
+        <p className="credit login-credit">created by Ahmet Kula</p>
         <h2>{t('loginTitle')}</h2>
         <p className="muted">{t('loginSub')}</p>
         <button className="btn google" onClick={go} disabled={busy}>

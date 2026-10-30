@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { cloud, store } from './store'
 import { I18n, LANGS, detectLang, makeT, useI18n } from './i18n'
 import { extractLinks, norm, snippet } from './lib/md'
-import { HexLogo, Icon } from './icons'
+import { Bee, HexLogo, Icon } from './icons'
 const Editor = lazy(() => import('./Editor'))
 import Graph from './Graph'
 import Board from './Board'
@@ -126,6 +126,33 @@ function Main() {
       return !p
     })
   const [toast, setToast] = useState('')
+  // "install as an app" (Android/desktop prompt, iOS instructions)
+  const [installEvt, setInstallEvt] = useState(null)
+  const [iosHint, setIosHint] = useState(false)
+  const standalone = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
+  const isIOS = typeof navigator !== 'undefined' && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+  useEffect(() => {
+    const f = (e) => {
+      e.preventDefault()
+      setInstallEvt(e)
+    }
+    const g = () => setInstallEvt(null)
+    window.addEventListener('beforeinstallprompt', f)
+    window.addEventListener('appinstalled', g)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', f)
+      window.removeEventListener('appinstalled', g)
+    }
+  }, [])
+  async function installApp() {
+    if (installEvt) {
+      installEvt.prompt()
+      try {
+        await installEvt.userChoice
+      } catch {}
+      setInstallEvt(null)
+    } else setIosHint(true)
+  }
 
   const [typing, setTyping] = useState('')
   const typingT = useRef(null)
@@ -785,7 +812,14 @@ function Main() {
   if (user === undefined) {
     return (
       <div className="splash">
-        <HexLogo size={56} />
+        <div className="hive">
+          <HexLogo size={56} />
+          <span className="bee-orbit small">
+            <span className="bee-bob">
+              <Bee size={26} />
+            </span>
+          </span>
+        </div>
       </div>
     )
   }
@@ -860,7 +894,10 @@ function Main() {
 
       <aside className="side">
         <div className="brand">
-          <HexLogo size={26} />
+          <span className="brand-hex">
+            <HexLogo size={26} />
+            <Bee size={15} className="brand-bee" />
+          </span>
           <span className="logo-wrap">
             <span className="logo-text">Kovan</span>
             <small className="credit">created by Ahmet Kula</small>
@@ -1025,6 +1062,17 @@ function Main() {
         </nav>
 
         <div className="side-foot">
+          {!standalone && (installEvt || isIOS) && (
+            <button className="install-btn" onClick={installApp}>
+              <span className="install-ico">
+                <HexLogo size={22} />
+              </span>
+              <span>
+                <strong>{t('installApp')}</strong>
+                <small>{t('installSub')}</small>
+              </span>
+            </button>
+          )}
           {!cloud && (
             <p className="local-note">
               {t('localMode')} <span>{t('localHint')}</span>
@@ -1127,7 +1175,16 @@ function Main() {
         <ul className="cards">
           {visible.length === 0 && (
             <li className="empty-list">
-              <HexLogo size={40} />
+              <div className="hive">
+                <HexLogo size={40} />
+                {!query && (
+                  <span className="bee-orbit small">
+                    <span className="bee-bob">
+                      <Bee size={22} />
+                    </span>
+                  </span>
+                )}
+              </div>
               <strong>{query ? t('noResults') : t('empty')}</strong>
               {!query && <span className="muted">{t('emptyHint')}</span>}
             </li>
@@ -1264,8 +1321,13 @@ function Main() {
           </Suspense>
         ) : (
           <div className="blank">
-            <div className="blank-hex">
+            <div className="blank-hex hive">
               <HexLogo size={72} />
+              <span className="bee-orbit">
+                <span className="bee-bob">
+                  <Bee size={30} />
+                </span>
+              </span>
             </div>
             <p>{loading ? t('loading') : t('pickNote')}</p>
             {!loading && (
@@ -1350,6 +1412,24 @@ function Main() {
           </div>
         )
       })()}
+
+      {iosHint && (
+        <div className="overlay" onMouseDown={() => setIosHint(false)}>
+          <div className="dialog small ios-hint" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="dlg-head">
+              <h3>{t('installApp')}</h3>
+            </div>
+            <ol>
+              <li>{t('iosStep1')}</li>
+              <li>{t('iosStep2')}</li>
+              <li>{t('iosStep3')}</li>
+            </ol>
+            <button className="btn primary wide" onClick={() => setIosHint(false)}>
+              {t('gotIt')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {dialog === 'newws' && (
         <div className="overlay" onMouseDown={() => setDialog(null)}>

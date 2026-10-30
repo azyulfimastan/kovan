@@ -1591,3 +1591,73 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 /* long-press sheet */
 .sheet-board { margin-bottom: 10px; justify-content: center; }
 @media (max-width: 1000px) { .shell:not(.side-open) .side { box-shadow: none; } }
+
+/* ---------- bees & honey ---------- */
+.bee { display: block; overflow: visible; }
+.bee-wing ellipse { fill: #fff; fill-opacity: 0.85; stroke: #2a1d08; stroke-opacity: 0.5; stroke-width: 1.6; }
+:root[data-theme='dark'] .bee-wing ellipse { fill: #dfe8ff; fill-opacity: 0.7; }
+.bee-wing { transform-box: fill-box; transform-origin: 50% 100%; animation: flap 0.11s ease-in-out infinite alternate; }
+.bee-wing.w2 { animation-delay: 0.05s; }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(0.45); } }
+
+.hive { position: relative; display: inline-grid; place-items: center; }
+.bee-orbit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; animation: bee-fly 9s ease-in-out infinite; }
+.bee-orbit .bee { transform: translate(-50%, -50%); }
+.bee-bob { display: block; animation: bee-bob 0.9s ease-in-out infinite alternate; }
+@keyframes bee-bob { to { transform: translateY(-4px); } }
+@keyframes bee-fly {
+  0% { transform: translate(58px, -34px) scaleX(1) rotate(8deg); }
+  14% { transform: translate(86px, 2px) scaleX(1) rotate(-6deg); }
+  28% { transform: translate(56px, 38px) scaleX(-1) rotate(6deg); }
+  44% { transform: translate(-4px, 46px) scaleX(-1) rotate(-4deg); }
+  58% { transform: translate(-70px, 12px) scaleX(-1) rotate(6deg); }
+  72% { transform: translate(-66px, -32px) scaleX(1) rotate(-8deg); }
+  86% { transform: translate(-8px, -54px) scaleX(1) rotate(4deg); }
+  100% { transform: translate(58px, -34px) scaleX(1) rotate(8deg); }
+}
+.bee-orbit.small { animation-name: bee-fly-sm; animation-duration: 7s; }
+@keyframes bee-fly-sm {
+  0% { transform: translate(38px, -24px) scaleX(1) rotate(8deg); }
+  20% { transform: translate(52px, 6px) scaleX(1); }
+  35% { transform: translate(30px, 28px) scaleX(-1) rotate(6deg); }
+  55% { transform: translate(-36px, 18px) scaleX(-1); }
+  70% { transform: translate(-46px, -12px) scaleX(-1) rotate(-6deg); }
+  85% { transform: translate(-6px, -38px) scaleX(1); }
+  100% { transform: translate(38px, -24px) scaleX(1) rotate(8deg); }
+}
+
+/* sidebar logo with a bee resting on the hive */
+.brand-hex { position: relative; display: inline-grid; flex: 0 0 auto; margin-right: 6px; }
+.brand-bee { position: absolute; right: -9px; top: -7px; animation: bee-rest 3.2s ease-in-out infinite; }
+@keyframes bee-rest { 0%, 70%, 100% { transform: translate(0, 0) rotate(-8deg); } 80% { transform: translate(2px, -3px) rotate(4deg); } 90% { transform: translate(-1px, -1px) rotate(-4deg); } }
+
+/* login */
+.login-card { position: relative; overflow: hidden; padding-top: 52px; }
+.honey-drip { position: absolute; top: -1px; left: 0; width: 100%; height: 56px; pointer-events: none; }
+.honey-drip .drop { animation: drop 4.5s ease-in infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes drop {
+  0%, 55% { transform: translateY(-8px) scale(0.4); opacity: 0; }
+  65% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(70px) scale(0.8); opacity: 0; }
+}
+.login-hex { position: relative; display: inline-grid; place-items: center; margin-top: 6px; }
+.login-credit { margin-top: 6px !important; font-size: 14px; }
+.splash .hive svg { animation: none; }
+.splash .hive > svg { animation: pulse 1.6s ease-in-out infinite; }
+
+/* install as an app */
+.install-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 10px;
+  border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--honey) 22%, var(--panel)), var(--panel));
+  border: 1px solid color-mix(in srgb, var(--honey) 45%, var(--line)); color: var(--ink);
+}
+.install-btn strong { display: block; font-size: 14px; }
+.install-btn small { display: block; font-size: 12px; color: var(--muted); }
+.install-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: #f6f1e4; box-shadow: 0 2px 6px rgba(0,0,0,.12); flex: 0 0 auto; }
+.ios-hint ol { margin: 4px 0 16px; padding-left: 20px; line-height: 1.6; }
+.ios-hint li { margin: 6px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bee-orbit, .bee-bob, .bee-wing, .brand-bee, .honey-drip .drop { animation: none; }
+  .bee-orbit { transform: translate(52px, -30px); }
+}

@@ -169,6 +169,12 @@ const D = {
     privacyLink: 'Privacy',
     termsLink: 'Terms',
     addedToBoard: 'Added to board',
+    installApp: 'Install the app',
+    installSub: 'Add Kovan to your home screen',
+    iosStep1: 'Tap the Share button (square with an arrow) at the bottom of Safari.',
+    iosStep2: 'Scroll and choose "Add to Home Screen".',
+    iosStep3: 'Tap "Add" — Kovan opens like an app.',
+    gotIt: 'Got it',
   },
   tr: {
     tagline: 'Notlar, birlikte.',
@@ -332,6 +338,12 @@ const D = {
     privacyLink: 'Gizlilik',
     termsLink: 'Şartlar',
     addedToBoard: 'Panoya eklendi',
+    installApp: 'Uygulamayı yükle',
+    installSub: 'Kovan’ı ana ekrana ekle',
+    iosStep1: 'Safari’nin altındaki Paylaş düğmesine (oklu kare) dokun.',
+    iosStep2: 'Aşağı kaydırıp "Ana Ekrana Ekle"yi seç.',
+    iosStep3: '"Ekle"ye dokun — Kovan uygulama gibi açılır.',
+    gotIt: 'Tamam',
   },
   pl: {
     tagline: 'Notatki, razem.',
@@ -495,6 +507,12 @@ const D = {
     privacyLink: 'Prywatność',
     termsLink: 'Warunki',
     addedToBoard: 'Dodano do tablicy',
+    installApp: 'Zainstaluj aplikację',
+    installSub: 'Dodaj Kovan do ekranu głównego',
+    iosStep1: 'Dotknij przycisku Udostępnij (kwadrat ze strzałką) w Safari.',
+    iosStep2: 'Przewiń i wybierz „Do ekranu początkowego”.',
+    iosStep3: 'Dotknij „Dodaj” — Kovan otworzy się jak aplikacja.',
+    gotIt: 'Rozumiem',
   },
 }
 

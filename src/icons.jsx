@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 const P = {
   plus: <path d="M12 5v14M5 12h14" />,
   search: (
@@ -116,6 +118,62 @@ export function HexLogo({ size = 28 }) {
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <polygon points="32,4 56,18 56,46 32,60 8,46 8,18" fill="var(--honey)" />
       <polygon points="32,18 44,25 44,39 32,46 20,39 20,25" fill="var(--hex-core)" />
+    </svg>
+  )
+}
+
+// A little honey bee (faces right). Wings flap via CSS.
+export function Bee({ size = 32, className = '' }) {
+  const id = useId().replace(/:/g, '')
+  return (
+    <svg className={`bee ${className}`} width={size} height={size * 0.8} viewBox="0 0 64 51" aria-hidden="true">
+      <defs>
+        <clipPath id={'bb' + id}>
+          <ellipse cx="28" cy="32" rx="18" ry="12.5" />
+        </clipPath>
+        <linearGradient id={'bg' + id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffd25e" />
+          <stop offset="1" stopColor="#eaa21c" />
+        </linearGradient>
+      </defs>
+      <g className="bee-wing w1">
+        <ellipse cx="24" cy="14" rx="8" ry="12" transform="rotate(-28 24 14)" />
+      </g>
+      <g className="bee-wing w2">
+        <ellipse cx="34" cy="13" rx="8" ry="12" transform="rotate(22 34 13)" />
+      </g>
+      <path d="M8 32 L1 30 L8 35 Z" fill="#2a1d08" />
+      <ellipse cx="28" cy="32" rx="18" ry="12.5" fill={`url(#bg${id})`} />
+      <g clipPath={`url(#bb${id})`} fill="#2a1d08">
+        <rect x="16" y="16" width="6" height="34" rx="2" />
+        <rect x="27" y="16" width="6" height="34" rx="2" />
+      </g>
+      <ellipse cx="28" cy="32" rx="18" ry="12.5" fill="none" stroke="#2a1d08" strokeWidth="2.4" />
+      <circle cx="49" cy="29" r="8.5" fill="#2a1d08" />
+      <circle cx="52" cy="27" r="2.2" fill="#fff" />
+      <path d="M50 21 C 51 14, 55 11, 58 11 M46 21 C 45 15, 47 10, 50 8" fill="none" stroke="#2a1d08" strokeWidth="2" strokeLinecap="round" />
+      <path d="M50.5 33 q2 2 4 0" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+// Honey dripping from the top edge of a card
+export function HoneyDrip({ className = '' }) {
+  const id = useId().replace(/:/g, '')
+  return (
+    <svg className={`honey-drip ${className}`} viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={'hd' + id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#c47f12" />
+          <stop offset="1" stopColor="#f0b33a" />
+        </linearGradient>
+      </defs>
+      <path
+        fill={`url(#hd${id})`}
+        d="M0 0 H400 V14 C392 14 388 18 386 26 C384 34 376 34 375 26 C373 16 366 15 352 16 C338 17 334 20 333 30 C332 44 320 44 319 30 C318 19 310 15 290 15 C262 16 256 17 254 22 C252 28 246 28 244 22 C240 15 222 15 200 16 C176 17 170 19 168 30 C166 52 152 52 150 30 C149 19 140 15 118 15 C96 15 92 18 90 24 C88 30 81 30 79 24 C76 16 66 15 52 16 C38 17 34 20 33 28 C32 38 22 38 21 28 C20 18 12 14 0 14 Z"
+      />
+      <path d="M8 6 H392" stroke="#fff" strokeOpacity=".35" strokeWidth="3" strokeLinecap="round" />
+      <circle className="drop" cx="159" cy="50" r="4.5" fill={`url(#hd${id})`} />
     </svg>
   )
 }
