@@ -48,10 +48,14 @@ export default function FlyBee() {
           const sp = Math.hypot(b.vx, b.vy)
           if (sp > b.max) { b.vx *= b.max / sp; b.vy *= b.max / sp }
           b.x += b.vx * dt; b.y += b.vy * dt
-          if (b.x < 10) { b.x = 10; b.vx = Math.abs(b.vx) }
-          if (b.x > W() - 30) { b.x = W() - 30; b.vx = -Math.abs(b.vx) }
-          if (b.y < 10) { b.y = 10; b.vy = Math.abs(b.vy) }
-          if (b.y > H() - 30) { b.y = H() - 30; b.vy = -Math.abs(b.vy) }
+          // steer away from the edges smoothly instead of bouncing off them
+          const M = 90
+          if (b.x < M) b.vx += (M - b.x) * 40 * dt
+          if (b.x > W() - M) b.vx -= (b.x - (W() - M)) * 40 * dt
+          if (b.y < M) b.vy += (M - b.y) * 40 * dt
+          if (b.y > H() - M) b.vy -= (b.y - (H() - M)) * 40 * dt
+          b.x = Math.max(-10, Math.min(W() - 14, b.x))
+          b.y = Math.max(-10, Math.min(H() - 14, b.y))
           if (Math.abs(b.vx) > 40) b.face = b.vx > 0 ? 1 : -1
           const wob = Math.sin(now / 40 + i) * 8
           el.style.transform = `translate(${b.x - 12}px, ${b.y - 10}px) scaleX(${b.face}) rotate(${Math.max(-40, Math.min(40, b.vy * 0.08)) * b.face + wob}deg)`
