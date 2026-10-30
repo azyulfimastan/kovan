@@ -7,6 +7,7 @@ export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft }) {
   const { t } = useI18n()
   const [members, setMembers] = useState([])
   const [copied, setCopied] = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const isOwner = ws.owner_id === me.id
   const link = `${window.location.origin}/?join=${ws.invite_code}`
@@ -27,11 +28,19 @@ export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft }) {
     setTimeout(() => setCopied(false), 1800)
   }
 
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(ws.short_code)
+    } catch {}
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 1800)
+  }
+
   async function reset() {
     setBusy(true)
     try {
-      const code = await store.rotateInvite(ws.id)
-      onWsChange({ ...ws, invite_code: code })
+      await store.rotateInvite(ws.id)
+      onWsChange(await store.getWorkspace(ws.id))
     } finally {
       setBusy(false)
     }
@@ -58,6 +67,19 @@ export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft }) {
             </button>
           </div>
         </label>
+        {ws.short_code && (
+          <div className="field">
+            <span className="muted">{t('codeHint')}</span>
+            <div className="row">
+              <div className="room-code" aria-label={t('roomCode')}>
+                {ws.short_code.slice(0, 3)} {ws.short_code.slice(3)}
+              </div>
+              <button className="btn" onClick={copyCode}>
+                {codeCopied ? t('copied') : t('copyCode')}
+              </button>
+            </div>
+          </div>
+        )}
         {isOwner && (
           <button className="btn ghost small" disabled={busy} onClick={reset} title={t('resetHint')}>
             {t('resetLink')} <span className="muted">— {t('resetHint')}</span>

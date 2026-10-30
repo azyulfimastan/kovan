@@ -11,7 +11,7 @@ const sb = cloud
   ? createClient(url, key, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } })
   : null
 
-const WS_COLS = 'id,name,invite_code,owner_id'
+const WS_COLS = 'id,name,invite_code,short_code,owner_id'
 
 function mapUser(u) {
   if (!u) return null
@@ -56,7 +56,12 @@ export const cloudStore = {
     return ok(await sb.from('workspaces').insert({ name }).select(WS_COLS).single())
   },
   async joinWorkspace(code) {
-    return ok(await sb.rpc('join_workspace', { code }))
+    const id = ok(await sb.rpc('join_workspace', { code }))
+    if (!id) throw new Error('invalid')
+    return id
+  },
+  async getWorkspace(id) {
+    return ok(await sb.from('workspaces').select(WS_COLS).eq('id', id).single())
   },
   async rotateInvite(id) {
     return ok(await sb.rpc('rotate_invite', { ws: id }))
@@ -205,6 +210,9 @@ export const localStore = {
   },
   async getMembers() {
     return []
+  },
+  async getWorkspace() {
+    return null
   },
   async leaveWorkspace() {},
   async deleteWorkspace() {},

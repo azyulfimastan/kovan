@@ -89,6 +89,8 @@ function Main() {
   const [members, setMembers] = useState([])
   const [dialog, setDialog] = useState(null) // 'share' | 'newws'
   const [newWsName, setNewWsName] = useState('')
+  const [joinText, setJoinText] = useState('')
+  const [joinBusy, setJoinBusy] = useState(false)
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
   const [sidePinned, setSidePinned] = useState(() => lsGet('kovan.pin') === '1')
@@ -433,6 +435,28 @@ function Main() {
     }
   }
 
+  async function joinRoom(e) {
+    e.preventDefault()
+    const raw = joinText.trim()
+    const link = /join=([A-Za-z0-9]+)/.exec(raw)
+    const code = link ? link[1] : raw.replace(/\s|-/g, '')
+    if (!code) return
+    setJoinBusy(true)
+    try {
+      const id = await store.joinWorkspace(code)
+      const list = await store.listWorkspaces()
+      setWorkspaces(list)
+      setWid(id)
+      setDialog(null)
+      setJoinText('')
+      flash('joined')
+    } catch (err) {
+      flash(/too many/i.test(err?.message || '') ? 'tooMany' : 'badCode')
+    } finally {
+      setJoinBusy(false)
+    }
+  }
+
   async function addFolder(e) {
     e.preventDefault()
     const name = folderName.trim()
@@ -540,6 +564,11 @@ function Main() {
         {cloud && ws && (
           <button className="btn soft wide" onClick={() => setDialog('share')}>
             <Icon name="users" size={16} /> {t('inviteFriends')}
+          </button>
+        )}
+        {cloud && (
+          <button className="btn wide" onClick={() => setDialog('join')}>
+            <Icon name="plus" size={16} /> {t('joinRoom')}
           </button>
         )}
         {cloud && members.length > 0 && (
@@ -779,6 +808,35 @@ function Main() {
             bootstrap()
           }}
         />
+      )}
+
+      {dialog === 'join' && (
+        <div className="overlay" onMouseDown={() => setDialog(null)}>
+          <form className="dialog small" onMouseDown={(e) => e.stopPropagation()} onSubmit={joinRoom}>
+            <div className="dlg-head">
+              <h3>{t('joinRoom')}</h3>
+            </div>
+            <span className="muted">{t('joinHint')}</span>
+            <input
+              className="code-input"
+              autoFocus
+              inputMode="numeric"
+              autoComplete="off"
+              value={joinText}
+              onChange={(e) => setJoinText(e.target.value)}
+              placeholder="000 000"
+              maxLength={200}
+            />
+            <div className="dlg-foot">
+              <button type="button" className="btn ghost" onClick={() => setDialog(null)}>
+                {t('cancel')}
+              </button>
+              <button className="btn primary" disabled={!joinText.trim() || joinBusy}>
+                {t('join')}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {dialog === 'newws' && (
