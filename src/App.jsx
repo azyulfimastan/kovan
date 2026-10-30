@@ -35,20 +35,6 @@ function initialTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-const ACCENTS = [
-  { id: 'honey', color: '#f2a900', key: 'colHoney' },
-  { id: 'rose', color: '#e5527a', key: 'colRose' },
-  { id: 'ocean', color: '#1f84dc', key: 'colOcean' },
-  { id: 'forest', color: '#2c9a58', key: 'colForest' },
-  { id: 'violet', color: '#7a5af0', key: 'colViolet' },
-  { id: 'graphite', color: '#3d3d3d', key: 'colGraphite' },
-]
-
-function initialAccent() {
-  const s = lsGet('kovan.accent')
-  return ACCENTS.some((a) => a.id === s) ? s : 'honey'
-}
-
 export default function App() {
   const [lang, setLangState] = useState(detectLang)
   const t = useMemo(() => makeT(lang), [lang])
@@ -81,7 +67,6 @@ function Main() {
   tRef.current = t
 
   const [theme, setTheme] = useState(initialTheme)
-  const [accent, setAccent] = useState(initialAccent)
   const [folders, setFolders] = useState([])
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderName, setFolderName] = useState('')
@@ -141,12 +126,9 @@ function Main() {
   // theme
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.documentElement.dataset.accent = accent
     lsSet('kovan.theme', theme)
-    lsSet('kovan.accent', accent)
-    const c = ACCENTS.find((a) => a.id === accent)?.color || '#f2a900'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#14120e' : c)
-  }, [theme, accent])
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0f1013' : '#f6f4ef')
+  }, [theme])
 
   // remember invite link before sign-in
   useEffect(() => {
@@ -473,15 +455,6 @@ function Main() {
 
   const nextTheme = () => setTheme((x) => (x === 'dark' ? 'light' : 'dark'))
 
-  const commands = [
-    { id: 'new', icon: 'plus', label: t('newNote'), run: () => newNote() },
-    { id: 'graph', icon: 'graph', label: t('graph'), run: () => setView((v) => (v === 'graph' ? 'notes' : 'graph')) },
-    { id: 'folder', icon: 'folder', label: t('newFolder'), run: () => setAddingFolder(true) },
-    { id: 'theme', icon: theme === 'dark' ? 'sun' : 'moon', label: t('theme'), run: nextTheme },
-    ...(cloud ? [{ id: 'share', icon: 'link', label: t('share'), run: () => setDialog('share') }] : []),
-    ...LANGS.filter((l) => l.code !== lang).map((l) => ({ id: 'lang-' + l.code, icon: 'globe', label: l.label, run: () => setLang(l.code) })),
-  ]
-
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -654,20 +627,6 @@ function Main() {
               </button>
             </div>
           )}
-          <div className="swatches" role="radiogroup" aria-label={t('accent')}>
-            <span className="sw-label">{t('accent')}</span>
-            {ACCENTS.map((a) => (
-              <button
-                key={a.id}
-                role="radio"
-                aria-checked={accent === a.id}
-                className={`sw ${accent === a.id ? 'on' : ''}`}
-                style={{ background: a.color }}
-                title={t(a.key)}
-                onClick={() => setAccent(a.id)}
-              />
-            ))}
-          </div>
           <div className="foot-row">
             <div className="lang-row small">
               {LANGS.map((l) => (
@@ -779,7 +738,7 @@ function Main() {
         )}
       </main>
 
-      <Palette open={palette} onClose={() => setPalette(false)} notes={notes} commands={commands} onOpenNote={openNote} />
+      <Palette open={palette} onClose={() => setPalette(false)} notes={notes} onOpenNote={openNote} />
 
       {dialog === 'share' && ws && (
         <ShareDialog
