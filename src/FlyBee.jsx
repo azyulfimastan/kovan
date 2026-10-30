@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-const N = 700 // bees per tap
-const MAX = 700
+const N = 700 // bees on the first tap
+const STEP = 50 // more bees every second
+const SECS = 10
 const rnd = (a, b) => a + Math.random() * (b - a)
+const newBee = (m) => {
+  const a = rnd(0, Math.PI * 2), v = rnd(300, 800)
+  return { x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, max: rnd(500, 950), face: 1 }
+}
 
 // Lightweight bee for the swarm (no gradients/clip paths/ids, so hundreds stay smooth).
 const MiniBee = () => (
@@ -49,6 +54,12 @@ export default function FlyBee() {
       const s = st.current
       if (s.active) {
         const left = s.until - now
+        const want = N + STEP * Math.min(SECS - 1, Math.floor((now - s.start) / 1000))
+        if (want > s.bees.length && left > 0) {
+          const src = s.main
+          while (s.bees.length < want) s.bees.push(newBee(src))
+          setCount(s.bees.length)
+        }
         s.bees.forEach((b, i) => {
           const el = swarmEls.current[i]
           if (!el) return
@@ -83,16 +94,12 @@ export default function FlyBee() {
     return () => cancelAnimationFrame(raf)
   }, [ok])
 
-  function burst(from) {
+  function burst() {
     const s = st.current
-    if (!s.main) return
-    const m = from || s.main
-    const add = Array.from({ length: Math.min(N, MAX - s.bees.length) }, () => {
-      const a = rnd(0, Math.PI * 2), v = rnd(300, 800)
-      return { x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, max: rnd(500, 950), face: 1 }
-    })
-    s.bees = s.bees.concat(add)
-    s.until = performance.now() + 5000
+    if (!s.main || s.active) return
+    s.bees = Array.from({ length: N }, () => newBee(s.main))
+    s.start = performance.now()
+    s.until = s.start + SECS * 1000
     s.active = true
     setCount(s.bees.length)
     navigator.vibrate?.(20)
@@ -105,7 +112,7 @@ export default function FlyBee() {
         <Bee size={34} />
       </div>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)} onClick={() => burst(st.current.bees[i])}>
+        <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
           <MiniBee />
         </div>
       ))}
