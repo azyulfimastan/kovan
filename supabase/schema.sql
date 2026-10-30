@@ -1,12 +1,10 @@
 -- Kovan database schema. Run this once in Supabase: SQL Editor -> New query -> Run.
 
-create extension if not exists pgcrypto;
-
 -- Notebooks (shared workspaces) ------------------------------------------
 create table if not exists public.workspaces (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(name) between 1 and 80),
-  invite_code text not null unique default encode(gen_random_bytes(12), 'hex'),
+  invite_code text not null unique default replace(gen_random_uuid()::text, '-', ''),
   owner_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
   created_at  timestamptz not null default now()
 );
@@ -127,7 +125,7 @@ security definer
 set search_path = public
 as $$
 declare
-  new_code text := encode(gen_random_bytes(12), 'hex');
+  new_code text := replace(gen_random_uuid()::text, '-', '');
 begin
   update public.workspaces
      set invite_code = new_code
