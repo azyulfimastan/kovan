@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bee } from './icons'
 
-const N = 700 // bees on the first tap
-const STEP = 50 // more bees every second
+const N = 1200 // bees on the first tap
+const STEP = 100 // more bees every second
 const SECS = 10
 const rnd = (a, b) => a + Math.random() * (b - a)
 const newBee = (m) => {
@@ -111,6 +111,7 @@ export default function FlyBee() {
       <div className="fly-bee main" ref={mainEl} onClick={() => burst()} role="button" aria-label="bee">
         <Bee size={34} />
       </div>
+      {count > 0 && <div className="swarm-shield" />}
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="fly-bee swarm" ref={(el) => (swarmEls.current[i] = el)}>
           <MiniBee />

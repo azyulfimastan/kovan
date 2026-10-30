@@ -1693,3 +1693,5 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .ctx-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 9px; color: var(--ink); font-size: 14px; font-weight: 600; text-align: left; }
 .ctx-menu button:hover { background: var(--honey-soft); }
 .ctx-menu button.danger { color: #e0556b; }
+
+.swarm-shield { position: fixed; inset: 0; z-index: 94; }
