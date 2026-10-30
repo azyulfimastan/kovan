@@ -21,7 +21,7 @@ function dueInfo(due) {
 
 const between = (prev, next) => (prev != null && next != null ? (prev + next) / 2 : prev != null ? prev + 1000 : next != null ? next - 1000 : 1000)
 
-export default function Board({ notes, columns, members, onOpen, onMove, onAdd, onAddColumn, onRenameColumn, onDeleteColumn, onMoveColumn, header }) {
+export default function Board({ notes, columns, members, onOpen, onMove, onAdd, onAddColumn, onRenameColumn, onDeleteColumn, onMoveColumn, header, folderOf }) {
   const { t } = useI18n()
   const root = useRef(null)
   const dragging = useRef(false)
@@ -34,7 +34,7 @@ export default function Board({ notes, columns, members, onOpen, onMove, onAdd, 
   const byCol = useMemo(() => {
     const m = new Map([['', []]])
     columns.forEach((c) => m.set(c.id, []))
-    notes.forEach((n) => m.get(n.column_id && m.has(n.column_id) ? n.column_id : '').push(n))
+    notes.forEach((n) => m.get(n.column_id && m.has(n.column_id) ? n.column_id : columns[0]?.id ?? '').push(n))
     for (const [k, l] of m) l.sort(k === '' ? (a, b) => (a.updated_at < b.updated_at ? 1 : -1) : (a, b) => a.pos - b.pos || (a.updated_at < b.updated_at ? 1 : -1))
     return m
   }, [notes, columns])
@@ -109,7 +109,7 @@ export default function Board({ notes, columns, members, onOpen, onMove, onAdd, 
     const due = dueInfo(n.due)
     const who = n.assignee && member(n.assignee)
     return (
-      <div key={n.id} className="kcard" data-id={n.id} onClick={() => !dragging.current && onOpen(n.id)}>
+      <div key={n.id} className={`kcard ${n.folder_id ? 'has-c' : ''}`} style={n.folder_id && folderOf ? { '--c': folderOf(n) } : undefined} data-id={n.id} onClick={() => !dragging.current && onOpen(n.id)}>
         {n.label && LABELS[n.label] && <span className="k-label" style={{ background: LABELS[n.label] }} />}
         {cover && <img className="k-cover" src={cover} alt="" loading="lazy" draggable={false} />}
         <div className="k-title">{n.title || t('untitled')}</div>
@@ -156,17 +156,6 @@ export default function Board({ notes, columns, members, onOpen, onMove, onAdd, 
     <div className="board-wrap">
       {header}
       <div className="board" ref={root}>
-        <section className="col inbox">
-          <div className="col-head">
-            <strong>{t('inbox')}</strong>
-            <em>{byCol.get('').length}</em>
-          </div>
-          <div className="col-cards" data-col="">
-            {byCol.get('').map(renderCard)}
-          </div>
-          {renderAdd('')}
-        </section>
-
         <div className="cols">
           {columns.map((c) => (
             <section className="col" key={c.id} data-id={c.id}>

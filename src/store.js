@@ -77,11 +77,14 @@ export const cloudStore = {
   },
 
   async listFolders(wid) {
-    const { data, error } = await sb.from('folders').select('id,name').eq('workspace_id', wid).order('created_at')
+    const { data, error } = await sb.from('folders').select('id,name,color').eq('workspace_id', wid).order('created_at')
     return error ? [] : data // folders table not installed yet -> no folders
   },
   async createFolder(wid, name) {
-    return ok(await sb.from('folders').insert({ workspace_id: wid, name }).select('id,name').single())
+    return ok(await sb.from('folders').insert({ workspace_id: wid, name }).select('id,name,color').single())
+  },
+  async updateFolder(id, patch) {
+    ok(await sb.from('folders').update(patch).eq('id', id))
   },
   async deleteFolder(id) {
     ok(await sb.from('folders').delete().eq('id', id))
@@ -135,6 +138,7 @@ export const cloudStore = {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'board_columns', filter: f }, (p) => h.colUpdate?.(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'board_columns' }, (p) => h.colRemove?.(p.old.id))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'folders', filter: f }, (p) => h.folderAdd?.(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'folders', filter: f }, (p) => h.folderUpdate?.(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'folders' }, (p) => h.folderRemove?.(p.old.id))
       .subscribe()
     return () => {
@@ -267,6 +271,11 @@ export const localStore = {
     const d = load()
     d.columns = (d.columns || []).filter((c) => c.id !== id)
     d.notes = d.notes.map((n) => (n.column_id === id ? { ...n, column_id: null } : n))
+    save(d)
+  },
+  async updateFolder(id, patch) {
+    const d = load()
+    d.folders = (d.folders || []).map((f) => (f.id === id ? { ...f, ...patch } : f))
     save(d)
   },
   async deleteFolder(id) {

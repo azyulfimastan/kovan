@@ -30,6 +30,15 @@ const lsDel = (k) => {
   } catch {}
 }
 
+const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c']
+const folderColor = (f) => {
+  if (!f) return null
+  if (f.color && FOLDER_COLORS.includes(f.color)) return f.color
+  let h = 0
+  for (const ch of String(f.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return FOLDER_COLORS[h % FOLDER_COLORS.length]
+}
+
 function initialTheme() {
   const s = lsGet('kovan.theme')
   if (s === 'light' || s === 'dark') return s
@@ -138,7 +147,7 @@ function Main() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     lsSet('kovan.theme', theme)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0f1013' : '#f6f4ef')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0a1226' : '#f6f4ef')
   }, [theme])
 
   // remember invite link before sign-in
@@ -317,7 +326,8 @@ function Main() {
         setColumns((l) => l.filter((x) => x.id !== id))
         setNotes((ns) => ns.map((n) => (n.column_id === id ? { ...n, column_id: null } : n)))
       },
-      folderAdd: (f) => setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, { id: f.id, name: f.name }])),
+      folderAdd: (f) => setFolders((l) => (l.some((x) => x.id === f.id) ? l : [...l, { id: f.id, name: f.name, color: f.color }])),
+      folderUpdate: (f) => setFolders((l) => l.map((x) => (x.id === f.id ? { ...x, name: f.name, color: f.color } : x))),
       folderRemove: (id) => {
         setFolders((l) => l.filter((x) => x.id !== id))
         setNotes((ns) => ns.map((n) => (n.folder_id === id ? { ...n, folder_id: null } : n)))
@@ -391,6 +401,8 @@ function Main() {
   const ws = workspaces.find((w) => w.id === wid)
   const activeNote = notes.find((n) => n.id === activeId) || null
 
+  const pageFolder = folders.find((f) => f.id === (activeNote?.folder_id || (filter.kind === 'folder' ? filter.id : null)))
+  const pageColor = view === 'notes' || view === 'board' ? folderColor(pageFolder) : null
   const titleSet = useMemo(() => new Set(notes.map((n) => norm(n.title)).filter(Boolean)), [notes])
   const hasTitle = useCallback((x) => titleSet.has(norm(x)), [titleSet])
 
@@ -574,6 +586,13 @@ function Main() {
     }
   }
 
+  function cycleFolderColor(f) {
+    const cur = folderColor(f)
+    const next = FOLDER_COLORS[(FOLDER_COLORS.indexOf(cur) + 1) % FOLDER_COLORS.length]
+    setFolders((l) => l.map((x) => (x.id === f.id ? { ...x, color: next } : x)))
+    store.updateFolder(f.id, { color: next }).catch(() => flash('error'))
+  }
+
   async function removeFolder(f) {
     if (!window.confirm(t('deleteFolderConfirm'))) return
     try {
@@ -624,13 +643,16 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''}`}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'graph' || view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
 
       <aside className="side">
         <div className="brand">
           <HexLogo size={26} />
-          <span className="logo-text">Kovan</span>
+          <span className="logo-wrap">
+            <span className="logo-text">Kovan</span>
+            <small className="credit">created by Ahmet Kula</small>
+          </span>
           <button className={`icon-btn pin-side ${sidePinned ? 'active' : ''}`} onClick={togglePin} title={t('pinMenu')}>
             <Icon name="pin" size={16} />
           </button>
@@ -655,11 +677,6 @@ function Main() {
             </select>
             <Icon name="chevron" size={14} />
           </div>
-          {cloud && ws && (
-            <button className="icon-btn" onClick={() => setDialog('share')} title={t('share')}>
-              <Icon name="users" />
-            </button>
-          )}
         </div>
 
         {cloud && ws && (
@@ -715,7 +732,17 @@ function Main() {
                 closeSide()
               }}
             >
-              <Icon name="folder" size={15} /> <span className="f-name">{f.name}</span>
+              <span
+                className="f-dot"
+                role="button"
+                title={t('folderColor')}
+                style={{ background: folderColor(f) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  cycleFolderColor(f)
+                }}
+              />{' '}
+              <span className="f-name">{f.name}</span>
               <em>{notes.filter((n) => n.folder_id === f.id).length}</em>
               <span
                 className="f-del"
@@ -855,7 +882,11 @@ function Main() {
           )}
           {visible.map((n) => (
             <li key={n.id}>
-              <button className={`card ${n.id === activeId ? 'on' : ''}`} onClick={() => openNote(n.id)}>
+              <button
+                className={`card ${n.id === activeId ? 'on' : ''} ${n.folder_id ? 'has-c' : ''}`}
+                style={n.folder_id ? { '--c': folderColor(folders.find((f) => f.id === n.folder_id)) } : undefined}
+                onClick={() => openNote(n.id)}
+              >
                 <div className="card-top">
                   <strong>{n.title || t('untitled')}</strong>
                   {n.pinned && <Icon name="pin" size={13} className="pin-ico" />}
@@ -874,6 +905,7 @@ function Main() {
             notes={notes}
             columns={columns}
             members={members}
+            folderOf={(n) => (n.folder_id ? folderColor(folders.find((f) => f.id === n.folder_id)) : null)}
             onOpen={openCard}
             onMove={(id, patch) => edit(id, patch, true)}
             onAdd={addCard}
