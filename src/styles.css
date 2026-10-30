@@ -1258,3 +1258,11 @@ kbd {
 .check-row input { width: auto; accent-color: var(--honey); }
 
 .pal-group { padding: 8px 14px 4px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.nav .sub { margin-left: 18px; width: calc(100% - 18px); font-size: 14px; padding: 6px 10px; }
+.nav form.sub { padding: 0; }
+.nav .add-folder { color: var(--muted); }
+.nav .add-folder:hover { color: var(--ink); }
+.typing { font-size: 13px; color: var(--honey-strong); animation: blink 1.2s ease-in-out infinite; white-space: nowrap; }
+@keyframes blink { 50% { opacity: 0.45; } }
+.prose img, .ed-img { max-width: 100%; border-radius: 12px; }

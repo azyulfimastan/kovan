@@ -8,6 +8,8 @@ import Graph from './Graph'
 import Palette from './Palette'
 import ShareDialog from './ShareDialog'
 import Login from './Login'
+import { openLive } from './live'
+import { shrinkImage } from './lib/img'
 
 const lsGet = (k) => {
   try {
@@ -105,6 +107,12 @@ function Main() {
   const [sideOpen, setSideOpen] = useState(false)
   const [toast, setToast] = useState('')
 
+  const [typing, setTyping] = useState('')
+  const typingT = useRef(null)
+  const liveRef = useRef(null)
+  const notesRef = useRef([])
+  const activeIdRef = useRef(null)
+
   const pending = useRef({})
   const timers = useRef({})
   const dirty = useRef(new Set())
@@ -119,6 +127,9 @@ function Main() {
     setToast(tRef.current(key))
     setTimeout(() => setToast(''), 2600)
   }, [])
+
+  notesRef.current = notes
+  activeIdRef.current = activeId
 
   // theme
   useEffect(() => {
@@ -185,6 +196,7 @@ function Main() {
   function edit(id, patch, now = false) {
     if ('body' in patch) patch = { ...patch, tags: extractTags(patch.body) }
     setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)))
+    if (liveRef.current?.id === id) liveRef.current.set(patch)
     pending.current[id] = { ...(pending.current[id] || {}), ...patch }
     dirty.current.add(id)
     setSaveState('saving')
@@ -274,7 +286,15 @@ function Main() {
 
     const off = store.subscribe(wid, {
       insert: (row) => setNotes((ns) => (ns.some((n) => n.id === row.id) ? ns : [row, ...ns])),
-      update: (row) => setNotes((ns) => ns.map((n) => (n.id !== row.id || dirty.current.has(row.id) ? n : row))),
+      update: (row) =>
+        setNotes((ns) =>
+          ns.map((n) => {
+            if (n.id !== row.id) return n
+            // the open note is kept in sync live; only take non-text fields from the database
+            if (liveRef.current?.id === row.id) return { ...row, title: n.title, body: n.body, tags: n.tags }
+            return dirty.current.has(row.id) ? n : row
+          }),
+        ),
       remove: (id) => {
         setNotes((ns) => ns.filter((n) => n.id !== id))
         setActiveId((a) => (a === id ? null : a))
@@ -296,6 +316,29 @@ function Main() {
       setPeers([])
     }
   }, [wid, user?.id])
+
+  // live co-editing of the open note ------------------------------------------
+  useEffect(() => {
+    if (!cloud || !activeId || !user || view !== 'notes') return
+    const n = notesRef.current.find((x) => x.id === activeId)
+    if (!n) return
+    const id = activeId
+    const live = openLive(id, user, { title: n.title, body: n.body }, {
+      onText: ({ title, body }) =>
+        setNotes((ns) => ns.map((x) => (x.id === id && (x.title !== title || x.body !== body) ? { ...x, title, body, tags: extractTags(body) } : x))),
+      onTyping: (name) => {
+        setTyping(name || '…')
+        clearTimeout(typingT.current)
+        typingT.current = setTimeout(() => setTyping(''), 2500)
+      },
+    })
+    liveRef.current = live
+    return () => {
+      live.destroy()
+      if (liveRef.current === live) liveRef.current = null
+      setTyping('')
+    }
+  }, [activeId, user?.id, view])
 
   // derived ------------------------------------------------------------------
   const ws = workspaces.find((w) => w.id === wid)
@@ -387,6 +430,16 @@ function Main() {
       setDialog(cloud && newWsInvite ? 'share' : null)
     } catch {
       flash('error')
+    }
+  }
+
+  async function uploadImage(file) {
+    try {
+      const blob = await shrinkImage(file, cloud ? 1600 : 900, cloud ? 0.85 : 0.7)
+      return await store.uploadImage(wid, blob)
+    } catch {
+      flash('imageFail')
+      return null
     }
   }
 
@@ -533,6 +586,50 @@ function Main() {
           >
             <Icon name="notes" size={16} /> {t('allNotes')} <em>{notes.length}</em>
           </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              className={`folder-item sub ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
+              onClick={() => {
+                setFilter({ kind: 'folder', id: f.id })
+                setView('notes')
+                setActiveId(null)
+                setSideOpen(false)
+              }}
+            >
+              <Icon name="folder" size={15} /> <span className="f-name">{f.name}</span>
+              <em>{notes.filter((n) => n.folder_id === f.id).length}</em>
+              <span
+                className="f-del"
+                role="button"
+                title={t('delete')}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeFolder(f)
+                }}
+              >
+                <Icon name="x" size={14} />
+              </span>
+            </button>
+          ))}
+          {addingFolder ? (
+            <form onSubmit={addFolder} className="sub">
+              <input
+                className="folder-input"
+                autoFocus
+                value={folderName}
+                maxLength={60}
+                placeholder={t('folderName')}
+                onChange={(e) => setFolderName(e.target.value)}
+                onBlur={() => !folderName.trim() && setAddingFolder(false)}
+                onKeyDown={(e) => e.key === 'Escape' && (setFolderName(''), setAddingFolder(false))}
+              />
+            </form>
+          ) : (
+            <button className="sub add-folder" onClick={() => setAddingFolder(true)}>
+              <Icon name="plus" size={14} /> {t('newFolder')}
+            </button>
+          )}
           <button
             className={view === 'notes' && filter.kind === 'pinned' ? 'on' : ''}
             onClick={() => {
@@ -553,57 +650,6 @@ function Main() {
             <Icon name="graph" size={16} /> {t('graph')}
           </button>
         </nav>
-
-        <div className="folder-block">
-          <h5>
-            {t('folders')}
-            <button onClick={() => setAddingFolder(true)} title={t('newFolder')}>
-              <Icon name="plus" size={14} />
-            </button>
-          </h5>
-          {addingFolder && (
-            <form onSubmit={addFolder}>
-              <input
-                className="folder-input"
-                autoFocus
-                value={folderName}
-                maxLength={60}
-                placeholder={t('folderName')}
-                onChange={(e) => setFolderName(e.target.value)}
-                onBlur={() => !folderName.trim() && setAddingFolder(false)}
-                onKeyDown={(e) => e.key === 'Escape' && (setFolderName(''), setAddingFolder(false))}
-              />
-            </form>
-          )}
-          <nav className="nav">
-            {folders.map((f) => (
-              <button
-                key={f.id}
-                className={`folder-item ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
-                onClick={() => {
-                  setFilter({ kind: 'folder', id: f.id })
-                  setView('notes')
-                  setActiveId(null)
-                  setSideOpen(false)
-                }}
-              >
-                <Icon name="folder" size={16} /> <span className="f-name">{f.name}</span>
-                <em>{notes.filter((n) => n.folder_id === f.id).length}</em>
-                <span
-                  className="f-del"
-                  role="button"
-                  title={t('delete')}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeFolder(f)
-                  }}
-                >
-                  <Icon name="x" size={14} />
-                </span>
-              </button>
-            ))}
-          </nav>
-        </div>
 
         {tagCounts.length > 0 && (
           <div className="tag-block">
@@ -745,6 +791,8 @@ function Main() {
             onOpenTitle={openTitle}
             onOpenNote={openNote}
             onTag={pickTag}
+            typing={typing}
+            onUpload={uploadImage}
             folders={folders}
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
             onBack={() => setActiveId(null)}

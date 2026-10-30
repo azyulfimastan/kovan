@@ -110,6 +110,10 @@ const D = {
     colForest: 'Forest',
     colViolet: 'Violet',
     colGraphite: 'Graphite',
+    addImage: 'Add image',
+    imageFail: 'Could not upload image',
+    typing: '{name} is typing…',
+    uploading: 'Uploading…',
   },
   tr: {
     tagline: 'Notlar, birlikte.',
@@ -214,6 +218,10 @@ const D = {
     colForest: 'Orman',
     colViolet: 'Mor',
     colGraphite: 'Grafit',
+    addImage: 'Resim ekle',
+    imageFail: 'Resim yüklenemedi',
+    typing: '{name} yazıyor…',
+    uploading: 'Yükleniyor…',
   },
   pl: {
     tagline: 'Notatki, razem.',
@@ -318,6 +326,10 @@ const D = {
     colForest: 'Las',
     colViolet: 'Fiolet',
     colGraphite: 'Grafit',
+    addImage: 'Dodaj obraz',
+    imageFail: 'Nie udało się przesłać obrazu',
+    typing: '{name} pisze…',
+    uploading: 'Przesyłanie…',
   },
 }
 

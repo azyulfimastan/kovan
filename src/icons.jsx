@@ -63,6 +63,13 @@ const P = {
       <circle cx="15" cy="7.5" r="1" />
     </>
   ),
+  image: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M21 16l-5-5-8 8" />
+    </>
+  ),
   users: (
     <>
       <circle cx="9" cy="8" r="3.5" />

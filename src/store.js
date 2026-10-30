@@ -115,6 +115,29 @@ export const cloudStore = {
       sb.removeChannel(ch)
     }
   },
+  liveChannel(noteId, handlers) {
+    const ch = sb.channel('live:' + noteId, { config: { broadcast: { self: false } } })
+    for (const ev of Object.keys(handlers)) ch.on('broadcast', { event: ev }, (m) => handlers[ev](m.payload))
+    let ok = false
+    const waiting = []
+    ch.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        ok = true
+        waiting.splice(0).forEach((f) => f())
+      }
+    })
+    return {
+      send: (event, payload) => ok && ch.send({ type: 'broadcast', event, payload }),
+      ready: (f) => (ok ? f() : waiting.push(f)),
+      close: () => sb.removeChannel(ch),
+    }
+  },
+  async uploadImage(wid, file) {
+    const path = `${wid}/${crypto.randomUUID()}.${file.type === 'image/gif' ? 'gif' : 'jpg'}`
+    const { error } = await sb.storage.from('note-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
+    if (error) throw error
+    return sb.storage.from('note-images').getPublicUrl(path).data.publicUrl
+  },
   presence(wid, user, cb) {
     const ch = sb.channel('presence:' + wid, { config: { presence: { key: user.id } } })
     ch.on('presence', { event: 'sync' }, () => {
@@ -242,6 +265,17 @@ export const localStore = {
   },
   presence() {
     return () => {}
+  },
+  liveChannel() {
+    return { send() {}, ready() {}, close() {} }
+  },
+  async uploadImage(wid, file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader()
+      r.onload = () => res(r.result)
+      r.onerror = rej
+      r.readAsDataURL(file)
+    })
   },
 }
 

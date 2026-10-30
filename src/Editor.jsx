@@ -40,6 +40,8 @@ export default function Editor({
   onOpenTitle,
   onOpenNote,
   onTag,
+  typing = '',
+  onUpload,
   folders = [],
   onFolder,
   onBack,
@@ -81,6 +83,33 @@ export default function Editor({
   // Cursor position to restore right after the next render (set synchronously,
   // so fast typing can never race with it).
   const selRef = useRef(null)
+  const bodyRef = useRef(note.body)
+  bodyRef.current = note.body
+  const expectBody = useRef(note.body)
+  const prevBody = useRef(note.body)
+  const selMemo = useRef({ s: 0, e: 0 })
+  const fileRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
+
+  // a change that did not come from this keyboard (a friend typing): keep my cursor where it was
+  useLayoutEffect(() => {
+    const prev = prevBody.current
+    prevBody.current = note.body
+    if (note.body === expectBody.current || prev === note.body) return
+    const ta = taRef.current
+    if (!ta || document.activeElement !== ta) return
+    let p = 0
+    const max = Math.min(prev.length, note.body.length)
+    while (p < max && prev.charCodeAt(p) === note.body.charCodeAt(p)) p++
+    let sfx = 0
+    while (sfx < max - p && prev.charCodeAt(prev.length - 1 - sfx) === note.body.charCodeAt(note.body.length - 1 - sfx)) sfx++
+    const move = (pos) => (pos <= p ? pos : pos >= prev.length - sfx ? pos + (note.body.length - prev.length) : p)
+    const { s: a, e: b } = selMemo.current
+    const na = Math.max(0, move(a))
+    const nb = Math.max(0, move(b))
+    ta.setSelectionRange(na, nb)
+    selMemo.current = { s: na, e: nb }
+  }, [note.body])
   useLayoutEffect(() => {
     const pos = selRef.current
     if (pos == null) return
@@ -95,6 +124,7 @@ export default function Editor({
 
   function setBody(v, pos) {
     selRef.current = pos
+    expectBody.current = v
     onChange({ body: v })
   }
 
@@ -116,6 +146,8 @@ export default function Editor({
 
   function onInput(e) {
     const v = e.target.value
+    expectBody.current = v
+    selMemo.current = { s: e.target.selectionStart, e: e.target.selectionEnd }
     onChange({ body: v })
     setPop(detect(v, e.target.selectionStart))
     setIdx(0)
@@ -175,6 +207,26 @@ export default function Editor({
     if (cb) onChange({ body: toggleCheckbox(note.body, Number(cb.dataset.cb)) })
   }
 
+  async function addImages(files) {
+    const imgs = [...files].filter((f) => f.type.startsWith('image/'))
+    if (!imgs.length || !onUpload) return
+    setUploading(true)
+    try {
+      for (const f of imgs) {
+        const url = await onUpload(f)
+        if (!url) continue
+        const v = bodyRef.current
+        const pos = Math.min(selMemo.current.e, v.length)
+        const ins = (pos > 0 && v[pos - 1] !== '\n' ? '\n' : '') + `![](${url})\n`
+        setMode('edit')
+        setBody(v.slice(0, pos) + ins + v.slice(pos), pos + ins.length)
+        selMemo.current = { s: pos + ins.length, e: pos + ins.length }
+      }
+    } finally {
+      setUploading(false)
+    }
+  }
+
   function exportMd() {
     const text = (note.title ? `# ${note.title}\n\n` : '') + note.body
     const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
@@ -200,6 +252,7 @@ export default function Editor({
           </button>
         </div>
         <span className="grow" />
+        {typing && <span className="typing">✎ {t('typing', { name: typing })}</span>}
         {folders.length > 0 && (
           <select className="ed-folder" value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
             <option value="">{t('noFolder')}</option>
@@ -211,6 +264,24 @@ export default function Editor({
           </select>
         )}
         <span className={`save ${saveState}`}>{saveState === 'saving' ? t('saving') : t('saved')}</span>
+        {onUpload && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                addImages(e.target.files)
+                e.target.value = ''
+              }}
+            />
+            <button className="icon-btn" disabled={uploading} onClick={() => fileRef.current?.click()} title={uploading ? t('uploading') : t('addImage')}>
+              <Icon name="image" />
+            </button>
+          </>
+        )}
         <button className={`icon-btn ${note.pinned ? 'active' : ''}`} onClick={onPin} title={note.pinned ? t('unpin') : t('pin')}>
           <Icon name="pin" />
         </button>
@@ -247,6 +318,21 @@ export default function Editor({
               placeholder={t('bodyPlaceholder')}
               onChange={onInput}
               onKeyDown={onKeyDown}
+              onSelect={(e) => (selMemo.current = { s: e.target.selectionStart, e: e.target.selectionEnd })}
+              onPaste={(e) => {
+                const fs = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'))
+                if (fs.length) {
+                  e.preventDefault()
+                  addImages(fs)
+                }
+              }}
+              onDrop={(e) => {
+                const fs = [...(e.dataTransfer?.files || [])].filter((f) => f.type.startsWith('image/'))
+                if (fs.length) {
+                  e.preventDefault()
+                  addImages(fs)
+                }
+              }}
               onBlur={() => setTimeout(() => setPop(null), 150)}
               spellCheck
             />
