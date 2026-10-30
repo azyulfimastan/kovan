@@ -84,6 +84,7 @@ function Main() {
   const [folderMenu, setFolderMenu] = useState(false)
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
+  const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
   const [drag, setDrag] = useState(null) // {id,title,x,y,over}
   const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
   const [folderName, setFolderName] = useState('')
@@ -983,6 +984,7 @@ function Main() {
             <button
               key={f.id}
               data-fid={f.id}
+              onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'folder', item: f }) }}
               className={`folder-item sub ${drag?.over === f.id ? 'over' : ''} ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
               onClick={() => {
                 setFilter({ kind: 'folder', id: f.id })
@@ -1213,7 +1215,7 @@ function Main() {
                   if (lp.current.fired) { lp.current.fired = false; return }
                   openNote(n.id)
                 }}
-                onContextMenu={(e) => { e.preventDefault(); setMoveId(n.id) }}
+                onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'note', item: n }) }}
                 onTouchStart={(e) => startPress(e, n)}
                 onMouseDown={(e) => e.button === 0 && startPress(e, n)}
               >
@@ -1399,6 +1401,22 @@ function Main() {
             </div>
           </form>
         </div>
+      )}
+
+      {ctx && (
+        <>
+          <div className="menu-scrim" style={{ zIndex: 119 }} onMouseDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }} />
+          <div className="ctx-menu" style={{ left: Math.min(ctx.x, window.innerWidth - 190), top: Math.min(ctx.y, window.innerHeight - 110) }}>
+            {ctx.kind === 'note' && (
+              <button onClick={() => { setMoveId(ctx.item.id); setCtx(null) }}>
+                <Icon name="folder" size={15} /> {t('moveFolder')}
+              </button>
+            )}
+            <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : removeFolder(c.item) }}>
+              <Icon name="trash" size={15} /> {t('delete')}
+            </button>
+          </div>
+        </>
       )}
 
       {moveId && (() => {

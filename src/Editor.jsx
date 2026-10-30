@@ -123,6 +123,57 @@ function RichText({ note, live, placeholder, events, onEditor }) {
   return <EditorContent editor={editor} className="ed-rich" />
 }
 
+const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
+
+// Small box above a text selection: − [size] + (steps) or type any size by hand.
+function SizeBox({ editor, show, t }) {
+  const [txt, setTxt] = useState(null)
+  const [hold, setHold] = useState(false)
+  if (!editor || editor.isDestroyed) return null
+  const { selection: sel } = editor.state
+  if (sel.empty || sel.node || sel.$from.parent.type.name === 'codeBlock' || !(show || hold)) return null
+  const base = Math.round(parseFloat(getComputedStyle(editor.view.dom).fontSize) || 16)
+  const cur = Math.round(editor.getAttributes('fontSize').size || base)
+  const marked = !!editor.getAttributes('fontSize').size
+  let c
+  try { c = editor.view.coordsAtPos(sel.from) } catch { return null }
+  let top = c.top - 52
+  if (top < 8) top = editor.view.coordsAtPos(sel.to).bottom + 10
+  const left = Math.max(8, Math.min(c.left - 10, window.innerWidth - 190))
+  const apply = (v) => {
+    const n = Math.max(6, Math.min(160, Math.round(Number(v))))
+    if (!n) return
+    setTxt(null)
+    if (n === base) editor.chain().focus().unsetFontSize().run()
+    else editor.chain().focus().setFontSize(n).run()
+  }
+  const up = () => apply(SIZES.find((x) => x > cur) || cur + 8)
+  const down = () => apply([...SIZES].reverse().find((x) => x < cur) || Math.max(6, cur - 2))
+  const keep = (e) => e.preventDefault()
+  return (
+    <div className="size-box" style={{ top, left }} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
+      <button onMouseDown={keep} onClick={down} aria-label="−">−</button>
+      <input
+        inputMode="numeric"
+        value={txt ?? String(cur)}
+        onChange={(e) => setTxt(e.target.value.replace(/\D/g, '').slice(0, 3))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); apply(txt ?? cur) }
+          if (e.key === 'Escape') { setTxt(null); editor.commands.focus() }
+        }}
+        onBlur={() => txt != null && apply(txt)}
+        onFocus={(e) => e.target.select()}
+      />
+      <button onMouseDown={keep} onClick={up} aria-label="+">+</button>
+      {marked && (
+        <button className="rs" onMouseDown={keep} onClick={() => editor.chain().focus().unsetFontSize().run()} title={t('sizeReset')}>
+          ↺
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function Editor({
   note,
   notes,
@@ -496,6 +547,8 @@ export default function Editor({
           )}
         </div>
       </div>
+
+      <SizeBox editor={editor} show={focused} t={t} />
 
       {(touch ? focused : true) && (
         <div className={`kb-bar ${touch ? '' : 'desk'}`} style={touch ? { bottom: kbBottom } : undefined} onPointerDown={(e) => e.preventDefault()}>

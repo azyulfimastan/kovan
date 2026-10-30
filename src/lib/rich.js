@@ -1,11 +1,31 @@
 // Rich-text editor setup shared by the editor and the live (co-editing) layer.
 // Notes are still stored as Markdown; this file converts between the two.
-import { generateJSON, getSchema } from '@tiptap/core'
+import { generateJSON, getSchema, Mark } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import Image from '@tiptap/extension-image'
 import { Marked } from 'marked'
 import DOMPurify from 'dompurify'
+
+// Font size is stored as an inline <span style="font-size:Npx"> inside the Markdown.
+export const FontSize = Mark.create({
+  name: 'fontSize',
+  addAttributes() {
+    return { size: { default: null, rendered: false } }
+  },
+  parseHTML() {
+    return [{ tag: 'span', getAttrs: (el) => { const v = parseFloat(el.style?.fontSize); return v > 0 ? { size: v } : false } }]
+  },
+  renderHTML({ mark }) {
+    return ['span', { style: `font-size:${mark.attrs.size}px` }, 0]
+  },
+  addCommands() {
+    return {
+      setFontSize: (size) => ({ chain }) => chain().setMark('fontSize', { size }).run(),
+      unsetFontSize: () => ({ chain }) => chain().unsetMark('fontSize').run(),
+    }
+  },
+})
 
 export function baseExtensions({ collab = false } = {}) {
   const kit = {
@@ -13,7 +33,7 @@ export function baseExtensions({ collab = false } = {}) {
     link: { openOnClick: false, autolink: true, linkOnPaste: true },
   }
   if (collab) kit.undoRedo = false
-  return [StarterKit.configure(kit), TaskList, TaskItem.configure({ nested: true }), Image]
+  return [StarterKit.configure(kit), TaskList, TaskItem.configure({ nested: true }), Image, FontSize]
 }
 
 export const schema = getSchema(baseExtensions())
@@ -55,7 +75,7 @@ export function mdToJSON(src) {
 }
 
 // ---------- editor JSON -> Markdown (what we store) ----------
-const ORDER = ['link', 'bold', 'italic', 'strike', 'underline', 'code']
+const ORDER = ['link', 'fontSize', 'bold', 'italic', 'strike', 'underline', 'code']
 const DELIM = { bold: ['**', '**'], italic: ['*', '*'], strike: ['~~', '~~'], underline: ['<u>', '</u>'], code: ['`', '`'] }
 
 function escText(t) {
@@ -81,7 +101,7 @@ function inline(nodes = []) {
   let out = ''
   const open = []
   let trail = ''
-  const closer = (m) => (m.name === 'link' ? `](${m.href || ''})` : DELIM[m.name][1])
+  const closer = (m) => (m.name === 'link' ? `](${m.href || ''})` : m.name === 'fontSize' ? '</span>' : DELIM[m.name][1])
   const closeTo = (n) => {
     while (open.length > n) out += closer(open.pop())
   }
@@ -100,11 +120,11 @@ function inline(nodes = []) {
     }
     if (node.type !== 'text') continue
     const marks = (node.marks || [])
-      .map((m) => ({ name: m.type, href: m.attrs?.href }))
+      .map((m) => ({ name: m.type, href: m.attrs?.href, size: m.attrs?.size }))
       .filter((m) => ORDER.includes(m.name))
       .sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name))
     let k = 0
-    while (k < open.length && k < marks.length && open[k].name === marks[k].name && open[k].href === marks[k].href) k++
+    while (k < open.length && k < marks.length && open[k].name === marks[k].name && open[k].href === marks[k].href && open[k].size === marks[k].size) k++
     closeTo(k)
     out += trail
     trail = ''
@@ -121,7 +141,7 @@ function inline(nodes = []) {
       }
     }
     for (const m of marks.slice(k)) {
-      out += m.name === 'link' ? '[' : DELIM[m.name][0]
+      out += m.name === 'link' ? '[' : m.name === 'fontSize' ? `<span style="font-size:${m.size}px">` : DELIM[m.name][0]
       open.push(m)
     }
     out += text

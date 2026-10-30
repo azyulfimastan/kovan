@@ -1678,3 +1678,16 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .fly-bee .bee { filter: drop-shadow(0 4px 5px rgba(0,0,0,.28)); }
 @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) { .fly-bee { display: none; } }
 @media (min-width: 1001px) { .shell .dock { display: none !important; } }
+
+/* font size box above a selection */
+.size-box { position: fixed; z-index: 85; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); animation: sheet 0.12s ease; }
+.size-box button { width: 36px; height: 36px; border-radius: 10px; background: var(--panel2); color: var(--ink); font: 700 20px/1 var(--sans); display: grid; place-items: center; }
+.size-box button:active { background: var(--honey-soft); }
+.size-box .rs { font-size: 16px; color: var(--muted); }
+.size-box input { width: 48px; height: 36px; text-align: center; border: 0; background: transparent; color: var(--ink); font: 700 16px var(--sans); outline: none; border-radius: 8px; }
+.size-box input:focus { background: var(--honey-soft); }
+
+.ctx-menu { position: fixed; z-index: 120; min-width: 170px; padding: 6px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); animation: sheet 0.1s ease; }
+.ctx-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 9px; color: var(--ink); font-size: 14px; font-weight: 600; text-align: left; }
+.ctx-menu button:hover { background: var(--honey-soft); }
+.ctx-menu button.danger { color: #e0556b; }
