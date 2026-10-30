@@ -80,6 +80,7 @@ function Main() {
   const [theme, setTheme] = useState(initialTheme)
   const [folders, setFolders] = useState([])
   const [addingFolder, setAddingFolder] = useState(false)
+  const [foldersOpen, setFoldersOpen] = useState(true)
   const [folderMenu, setFolderMenu] = useState(false)
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
@@ -767,17 +768,21 @@ function Main() {
   // long-press a card, then drag it onto a folder in the dock (phones)
   function startPress(e, n) {
     lp.current.fired = false
-    const x0 = e.touches[0].clientX, y0 = e.touches[0].clientY
+    const mouse = !e.touches
+    const pt = (ev) => (ev.touches ? ev.touches[0] : ev)
+    const x0 = pt(e).clientX, y0 = pt(e).clientY
     let armed = false, moved = false, over
     const cancelTimer = () => clearTimeout(timer)
     const hit = (x, y) => document.elementFromPoint(x, y)?.closest?.('[data-fid]')?.getAttribute('data-fid')
     const onMove = (ev) => {
-      const t0 = ev.touches[0]
+      const t0 = pt(ev)
       if (!armed) {
-        if (Math.abs(t0.clientX - x0) > 8 || Math.abs(t0.clientY - y0) > 8) cleanup()
-        return
+        const far = Math.abs(t0.clientX - x0) > 8 || Math.abs(t0.clientY - y0) > 8
+        if (far && mouse) arm()
+        else if (far) cleanup()
+        if (!armed) return
       }
-      ev.preventDefault()
+      if (!mouse) ev.preventDefault()
       if (Math.abs(t0.clientX - x0) > 12 || Math.abs(t0.clientY - y0) > 12) moved = true
       over = hit(t0.clientX, t0.clientY)
       setDrag({ id: n.id, title: n.title, x: t0.clientX, y: t0.clientY, over })
@@ -795,17 +800,25 @@ function Main() {
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onEnd)
       window.removeEventListener('touchcancel', cleanup)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onEnd)
       setDrag(null)
     }
-    const timer = setTimeout(() => {
+    const arm = () => {
       armed = true
       lp.current.fired = true
-      navigator.vibrate?.(15)
+      if (!mouse) navigator.vibrate?.(15)
       setDrag({ id: n.id, title: n.title, x: x0, y: y0, over: undefined })
-    }, 420)
-    window.addEventListener('touchmove', onMove, { passive: false })
-    window.addEventListener('touchend', onEnd)
-    window.addEventListener('touchcancel', cleanup)
+    }
+    const timer = mouse ? null : setTimeout(arm, 420)
+    if (mouse) {
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onEnd)
+    } else {
+      window.addEventListener('touchmove', onMove, { passive: false })
+      window.addEventListener('touchend', onEnd)
+      window.addEventListener('touchcancel', cleanup)
+    }
   }
 
   // render -------------------------------------------------------------------
@@ -928,14 +941,9 @@ function Main() {
           </div>
         </div>
 
-        {cloud && ws && (
-          <button className="btn soft wide" onClick={() => setDialog('share')}>
-            <Icon name="users" size={16} /> {t('inviteFriends')}
-          </button>
-        )}
         {cloud && (
-          <button className="btn wide" onClick={() => setDialog('join')}>
-            <Icon name="plus" size={16} /> {t('joinRoom')}
+          <button className="btn soft wide" onClick={() => setDialog(ws ? 'share' : 'join')}>
+            <Icon name="users" size={16} /> {t('inviteJoin')}
           </button>
         )}
         {cloud && members.length > 0 && (
@@ -958,18 +966,24 @@ function Main() {
         <nav className="nav">
           <button
             className={view === 'notes' && filter.kind === 'all' ? 'on' : ''}
+            data-fid=""
             onClick={() => {
+              const already = view === 'notes' && filter.kind === 'all'
               setFilter({ kind: 'all' })
               setView('notes')
-              closeSide()
+              setActiveId(null)
+              if (already) setFoldersOpen((o) => !o)
+              else setFoldersOpen(true)
             }}
           >
             <Icon name="notes" size={16} /> {t('allNotes')} <em>{notes.length}</em>
+            <Icon name="chevron" size={13} className={`all-chev ${foldersOpen ? 'open' : ''}`} />
           </button>
-          {folders.map((f) => (
+          {(foldersOpen || drag) && folders.map((f) => (
             <button
               key={f.id}
-              className={`folder-item sub ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
+              data-fid={f.id}
+              className={`folder-item sub ${drag?.over === f.id ? 'over' : ''} ${view === 'notes' && filter.kind === 'folder' && filter.id === f.id ? 'on' : ''}`}
               onClick={() => {
                 setFilter({ kind: 'folder', id: f.id })
                 setView('notes')
@@ -1002,7 +1016,8 @@ function Main() {
               </span>
             </button>
           ))}
-          {addingFolder ? (
+          {!foldersOpen && !drag && <span className="sub muted fold-hint">{folders.length} {t('folders')}</span>}
+          {foldersOpen && (addingFolder ? (
             <form onSubmit={addFolder} className="sub">
               <input
                 className="folder-input"
@@ -1019,7 +1034,7 @@ function Main() {
             <button className="sub add-folder" onClick={() => setAddingFolder(true)}>
               <Icon name="plus" size={14} /> {t('newFolder')}
             </button>
-          )}
+          ))}
           <button
             className={view === 'notes' && filter.kind === 'pinned' ? 'on' : ''}
             onClick={() => {
@@ -1200,6 +1215,7 @@ function Main() {
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setMoveId(n.id) }}
                 onTouchStart={(e) => startPress(e, n)}
+                onMouseDown={(e) => e.button === 0 && startPress(e, n)}
               >
                 <div className="card-top">
                   <strong>{n.title || t('untitled')}</strong>
@@ -1347,6 +1363,7 @@ function Main() {
           me={user}
           onClose={() => setDialog(null)}
           onWsChange={(w) => setWorkspaces((l) => l.map((x) => (x.id === w.id ? w : x)))}
+          onJoin={() => setDialog('join')}
           onLeft={() => {
             setDialog(null)
             lsDel('kovan.ws')

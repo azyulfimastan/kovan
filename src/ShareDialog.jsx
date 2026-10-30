@@ -3,7 +3,7 @@ import { Icon } from './icons'
 import { useI18n } from './i18n'
 import { store } from './store'
 
-export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft }) {
+export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft, onJoin }) {
   const { t } = useI18n()
   const [members, setMembers] = useState([])
   const [copied, setCopied] = useState(false)
@@ -104,6 +104,9 @@ export default function ShareDialog({ ws, me, onClose, onWsChange, onLeft }) {
         </ul>
 
         <div className="dlg-foot">
+          <button className="btn soft small" onClick={onJoin}>
+            <Icon name="plus" size={14} /> {t('joinRoom')}
+          </button>
           {isOwner ? (
             <button
               className="btn danger small"

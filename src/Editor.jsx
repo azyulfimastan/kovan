@@ -497,8 +497,8 @@ export default function Editor({
         </div>
       </div>
 
-      {touch && focused && (
-        <div className="kb-bar" style={{ bottom: kbBottom }} onPointerDown={(e) => e.preventDefault()}>
+      {(touch ? focused : true) && (
+        <div className={`kb-bar ${touch ? '' : 'desk'}`} style={touch ? { bottom: kbBottom } : undefined} onPointerDown={(e) => e.preventDefault()}>
           {TB.map((b) => (
             <button key={b.k} className={`${b.cls || ''} ${isOn(b) ? 'on' : ''}`} title={t(b.k)} onClick={b.run}>
               {b.label}
