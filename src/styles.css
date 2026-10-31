@@ -1778,3 +1778,15 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.side-pinned:not(.has-note):not(.is-graph) .main { display: none; }
   .shell.side-pinned:not(.has-note):not(.is-graph) .list { width: min(760px, 100%); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 }
+
+/* unpinned desktop: the menu stays until you close it yourself */
+.side-close { display: none; margin-left: auto; }
+.side-close svg { transform: rotate(90deg); }
+@media (min-width: 721px) {
+  .shell.hover-nav .side-close { display: inline-grid; }
+  .shell.hover-nav .side-close + .pin-side { margin-left: 0; }
+  .shell.hover-nav.side-open .scrim { pointer-events: none; }
+}
+@media (min-width: 721px) {
+  .shell.hover-nav.side-open { padding-left: 280px; transition: padding-left 0.2s ease; }
+}

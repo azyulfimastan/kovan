@@ -121,7 +121,7 @@ function Main() {
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
   const [sidePinned, setSidePinned] = useState(() => window.innerWidth > 720 && lsGet('kovan.pin') === '1')
-  const closeSide = () => !sidePinned && setSideOpen(false)
+  const closeSide = () => !sidePinned && !hoverNav && setSideOpen(false)
   const hoverNav = !sidePinned && window.innerWidth > 720 && !!window.matchMedia?.('(hover: hover)').matches
   const togglePin = () =>
     setSidePinned((p) => {
@@ -942,6 +942,11 @@ function Main() {
             <span className="logo-text">Kovan</span>
             <small className="credit">created by Ahmet Kula</small>
           </span>
+          {hoverNav && (
+            <button className="icon-btn side-close" onClick={() => setSideOpen(false)} title={t('close')} aria-label={t('close')}>
+              <Icon name="chevron" size={16} />
+            </button>
+          )}
           <button className={`icon-btn pin-side ${sidePinned ? 'active' : ''}`} onClick={togglePin} title={sidePinned ? t('unpinMenu') : t('pinMenu')}>
             <Icon name="pin" size={16} />
           </button>
