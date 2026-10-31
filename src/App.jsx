@@ -123,18 +123,6 @@ function Main() {
   const [sidePinned, setSidePinned] = useState(() => window.innerWidth > 720 && lsGet('kovan.pin') === '1')
   const closeSide = () => !sidePinned && setSideOpen(false)
   const hoverNav = !sidePinned && window.innerWidth > 720 && !!window.matchMedia?.('(hover: hover)').matches
-  const hoverT = useRef(null)
-  const sideEnter = () => clearTimeout(hoverT.current)
-  const sideLeave = () => {
-    if (!hoverNav) return
-    clearTimeout(hoverT.current)
-    hoverT.current = setTimeout(() => {
-      const a = document.activeElement
-      if (a && a.closest?.('.side') && /^(SELECT|INPUT)$/.test(a.tagName)) return
-      if (document.querySelector('.overlay, .ctx-menu, .color-menu')) return
-      setSideOpen(false)
-    }, 350)
-  }
   const togglePin = () =>
     setSidePinned((p) => {
       lsSet('kovan.pin', p ? '0' : '1')
@@ -883,7 +871,11 @@ function Main() {
   return (
     <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${hoverNav ? 'hover-nav' : ''} ${pageColor ? 'has-fc' : ''} ${focusMode && activeNote && view === 'notes' ? 'focus-mode' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
-      {hoverNav && <div className="edge-hot" onMouseEnter={() => { clearTimeout(hoverT.current); setSideOpen(true) }} />}
+      {hoverNav && !sideOpen && (
+        <button className="edge-arrow" onClick={() => setSideOpen(true)} title={t('menu')} aria-label={t('menu')}>
+          <Icon name="chevron" size={18} />
+        </button>
+      )}
 
       {!sidePinned && drag && (
         <div className="dock dragging">
@@ -940,7 +932,7 @@ function Main() {
         </>
       )}
 
-      <aside className="side" onMouseEnter={sideEnter} onMouseLeave={sideLeave}>
+      <aside className="side">
         <div className="brand">
           <span className="brand-hex">
             <HexLogo size={26} />
@@ -950,7 +942,7 @@ function Main() {
             <span className="logo-text">Kovan</span>
             <small className="credit">created by Ahmet Kula</small>
           </span>
-          <button className={`icon-btn pin-side ${sidePinned ? 'active' : ''}`} onClick={togglePin} title={t('pinMenu')}>
+          <button className={`icon-btn pin-side ${sidePinned ? 'active' : ''}`} onClick={togglePin} title={sidePinned ? t('unpinMenu') : t('pinMenu')}>
             <Icon name="pin" size={16} />
           </button>
         </div>

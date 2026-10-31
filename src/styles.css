@@ -1746,13 +1746,9 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.hover-nav.side-open .side { transform: none; }
   .shell.hover-nav.side-open .scrim { display: block; position: fixed; inset: 0; z-index: 35; background: transparent; }
   .shell.hover-nav.focus-mode { grid-template-columns: minmax(0, 1fr); }
-  .shell.hover-nav .edge-hot { display: block; position: fixed; left: 0; top: 0; bottom: 0; width: 12px; z-index: 39; }
-  .shell.hover-nav.side-open .edge-hot { display: none; }
-}
+  }
 @media (min-width: 721px) and (max-width: 1000px) {
-  .shell.hover-nav .edge-hot { display: block; position: fixed; left: 0; top: 0; bottom: 0; width: 12px; z-index: 39; }
-  .shell.hover-nav.side-open .edge-hot { display: none; }
-}
+  }
 .rich p { margin: 0.1em 0; }
 .rich li > p { margin: 0; }
 .rich ul, .rich ol { margin: 0.2em 0; }
@@ -1769,9 +1765,16 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .room-name { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
 .room-name strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* menu not pinned: the notes list sits in the middle when no note is open */
+/* unpinned desktop: small arrow on the left edge opens the menu */
+.edge-arrow { display: none; }
 @media (min-width: 721px) {
-  .shell.hover-nav:not(.has-note):not(.is-graph) { grid-template-columns: minmax(0, 1fr); }
-  .shell.hover-nav:not(.has-note):not(.is-graph) .main { display: none; }
-  .shell.hover-nav:not(.has-note):not(.is-graph) .list { width: min(760px, 100%); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  .shell.hover-nav .edge-arrow { display: grid; place-items: center; position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 38; width: 22px; height: 64px; border-radius: 0 14px 14px 0; background: var(--panel); border: 1px solid var(--line); border-left: 0; color: var(--muted); box-shadow: var(--shadow); }
+  .shell.hover-nav .edge-arrow svg { transform: rotate(-90deg); }
+  .shell.hover-nav .edge-arrow:hover { color: var(--honey-strong); width: 28px; }
+}
+/* pinned menu: the notes list sits in the middle when no note is open */
+@media (min-width: 721px) {
+  .shell.side-pinned:not(.has-note):not(.is-graph) { grid-template-columns: 256px minmax(0, 1fr); }
+  .shell.side-pinned:not(.has-note):not(.is-graph) .main { display: none; }
+  .shell.side-pinned:not(.has-note):not(.is-graph) .list { width: min(760px, 100%); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 }
