@@ -22,7 +22,7 @@ export default function Admin() {
   if (!rows) return null
   const total = rows.reduce((a, r) => a + Number(r.text_bytes) + Number(r.image_bytes), 0)
   return (
-    <div style={{ minHeight: '100vh', background: '#0b1226', color: '#f3f5fb', fontFamily: 'inherit' }}><div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 16px' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#0b1226', color: '#f3f5fb', fontFamily: 'inherit' }}><div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 16px' }}>
       <h1 style={{ marginTop: 0 }}>Admin</h1>
       <p style={{ color: '#c9d2ee' }}>{rows.length} kullanıcı · {rooms.length} oda · {rooms.reduce((a, r) => a + Number(r.notes), 0)} not · toplam {fmt(total)}</p>
       <div style={{ overflowX: 'auto' }}>
