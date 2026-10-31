@@ -1,3 +1,4 @@
+import { pasteYouTube } from './lib/ytitle'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { Extension } from '@tiptap/core'
@@ -84,7 +85,8 @@ function RichText({ note, live, placeholder, events, onEditor }) {
     editorProps: {
       attributes: { class: 'rich prose', spellcheck: 'true' },
       handleKeyDown: (_v, e) => ev.current.key(e) || false,
-      handlePaste: (_v, e) => {
+      handlePaste: (v, e) => {
+        if (pasteYouTube(v, e.clipboardData?.getData('text/plain'))) return true
         const fs = imageFiles(e.clipboardData?.files)
         if (!fs.length) return false
         ev.current.images(fs)
