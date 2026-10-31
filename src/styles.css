@@ -1768,3 +1768,10 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .room-tile.add { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); opacity: 1; font-size: 14px; }
 .room-name { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
 .room-name strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* menu not pinned: the notes list sits in the middle when no note is open */
+@media (min-width: 721px) {
+  .shell.hover-nav:not(.has-note):not(.is-graph) { grid-template-columns: minmax(0, 1fr); }
+  .shell.hover-nav:not(.has-note):not(.is-graph) .main { display: none; }
+  .shell.hover-nav:not(.has-note):not(.is-graph) .list { width: min(760px, 100%); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+}
