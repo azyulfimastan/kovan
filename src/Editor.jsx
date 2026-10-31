@@ -454,9 +454,6 @@ export default function Editor({
             </button>
           </>
         )}
-        <button className={`icon-btn ${note.pinned ? 'active' : ''}`} onClick={onPin} title={note.pinned ? t('unpin') : t('pin')}>
-          <Icon name="pin" />
-        </button>
         {onFocus && (
           <button className={`icon-btn only-wide ${focus ? 'active' : ''}`} onClick={onFocus} title={t('focusMode')}>
             <Icon name="expand" />
