@@ -25,6 +25,7 @@ async function fetchTitle(url) {
 }
 
 const TITLE_SIZE = 11
+const LINK_SIZE = 14
 
 // Pasting a YouTube link: it becomes the next numbered item, the video title goes on the line below (small).
 // returns true when the paste was handled
@@ -39,7 +40,8 @@ export function pasteYouTube(view, text) {
   const $f = state.selection.$from
   const parent = $f.parent
   if (parent.type !== paragraph) return false
-  const linkText = schema.text(url, [link.create({ href: url })])
+  const fsm = schema.marks.fontSize
+  const linkText = schema.text(url, [link.create({ href: url }), ...(fsm ? [fsm.create({ size: LINK_SIZE })] : [])])
   const tr = state.tr
   const empty = parent.content.size === 0
   const inItem = $f.depth >= 2 && $f.node($f.depth - 1).type === listItem && $f.node($f.depth - 2).type === orderedList

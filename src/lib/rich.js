@@ -21,7 +21,7 @@ export const FontSize = Mark.create({
   renderHTML({ mark }) {
     return ['span', { style: `font-size:${mark.attrs.size}px` }, 0]
   },
-  // a paragraph whose text is all one size gets that size itself, so its line height shrinks/grows with it
+  // a paragraph whose text is all sized gets its biggest size itself, so its line height shrinks/grows with it
   addProseMirrorPlugins() {
     return [
       new Plugin({
@@ -30,13 +30,13 @@ export const FontSize = Mark.create({
             const decos = []
             state.doc.descendants((node, pos) => {
               if (node.type.name !== 'paragraph' || !node.childCount) return
-              let size = null
+              let size = 0
               let ok = true
               node.forEach((c) => {
                 if (!ok || !c.isText) return
                 const m = c.marks.find((x) => x.type.name === 'fontSize')
-                if (!m || (size && m.attrs.size !== size)) ok = false
-                else size = m.attrs.size
+                if (!m) ok = false
+                else size = Math.max(size, m.attrs.size)
               })
               if (ok && size) decos.push(Decoration.node(pos, pos + node.nodeSize, { style: `font-size:${size}px` }))
             })
