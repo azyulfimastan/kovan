@@ -1819,3 +1819,9 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .side-toggle.closed { left: 0; margin-left: 0; }
   .side-toggle.closed svg { transform: rotate(-90deg); }
 }
+@media (min-width: 721px) {
+  .shell.desk .list { padding-left: 16px; }
+  .side-toggle { width: 16px; height: 56px; border-radius: 0 12px 12px 0; margin-left: 0; }
+  .side-toggle svg { width: 14px; height: 14px; }
+  .side-toggle:hover { width: 18px; }
+}
