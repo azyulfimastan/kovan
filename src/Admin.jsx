@@ -16,23 +16,23 @@ export default function Admin() {
       else setErr(`${e.code || ''} ${e.message || e}`)
     })
   }, [])
-  if (err) return <pre style={{ padding: 24, color: '#f88', whiteSpace: 'pre-wrap' }}>{err}</pre>
+  if (err) return <pre style={{ padding: 24, color: '#b00020', whiteSpace: 'pre-wrap' }}>{err}</pre>
   if (!rows) return null
   const total = rows.reduce((a, r) => a + Number(r.text_bytes) + Number(r.image_bytes), 0)
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 16px', color: 'var(--text, #e8ecf8)', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100vh', background: '#0b1226', color: '#f3f5fb', fontFamily: 'inherit' }}><div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 16px' }}>
       <h1 style={{ marginTop: 0 }}>Admin</h1>
-      <p style={{ opacity: 0.8 }}>{rows.length} kullanıcı · toplam {fmt(total)}</p>
+      <p style={{ color: '#c9d2ee' }}>{rows.length} kullanıcı · toplam {fmt(total)}</p>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
           <thead>
-            <tr style={{ textAlign: 'left', opacity: 0.7 }}>
+            <tr style={{ textAlign: 'left', color: '#e6c36a' }}>
               {['E-posta', 'Kayıt', 'Son giriş', 'Not', 'Metin', 'Resim', 'Toplam'].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.user_id} style={{ borderTop: '1px solid rgba(255,255,255,.1)' }}>
+              <tr key={r.user_id} style={{ borderTop: '1px solid rgba(255,255,255,.18)' }}>
                 <td style={{ padding: '8px 10px' }}>{r.email}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.created_at)}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.last_sign_in)}</td>
@@ -45,6 +45,6 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
-    </div>
+    </div></div>
   )
 }
