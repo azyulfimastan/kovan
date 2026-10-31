@@ -836,22 +836,16 @@ function Main() {
     }
   }
 
-  // focus mode = the note on the whole screen (browser fullscreen too, where the browser allows it)
+  // focus mode = the note fills the whole window (menu and list hidden)
   useEffect(() => {
     if (focusMode && !(activeId && view === 'notes')) setFocusMode(false)
   }, [focusMode, activeId, view])
   useEffect(() => {
-    const el = document.documentElement
     if (focusMode) {
-      if (!document.fullscreenElement) el.requestFullscreen?.().catch(() => {})
       const k = (e) => e.key === 'Escape' && !document.querySelector('.sug, .overlay, .size-box') && setFocusMode(false)
-      const fs = () => !document.fullscreenElement && setFocusMode(false)
       window.addEventListener('keydown', k)
-      document.addEventListener('fullscreenchange', fs)
       return () => {
         window.removeEventListener('keydown', k)
-        document.removeEventListener('fullscreenchange', fs)
-        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
       }
     }
   }, [focusMode])
