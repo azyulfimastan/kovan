@@ -710,6 +710,19 @@ function Main() {
     store.updateFolder(f.id, { color: next }).catch(() => flash('error'))
   }
 
+  async function removeRoom(w) {
+    const owner = w.owner_id === user.id
+    if (!window.confirm(t(owner ? 'deleteWsConfirm' : 'leaveConfirm'))) return
+    try {
+      if (owner) await store.deleteWorkspace(w.id)
+      else await store.leaveWorkspace(w.id, user.id)
+      lsDel('kovan.ws')
+      bootstrap()
+    } catch {
+      flash('error')
+    }
+  }
+
   async function removeFolder(f) {
     if (!window.confirm(t('deleteFolderConfirm'))) return
     try {
@@ -921,7 +934,7 @@ function Main() {
         </div>
 
         <div className="ws-row">
-          <div className="select-wrap">
+          <div className="select-wrap" onContextMenu={(e) => { if (!cloud || !ws) return; e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'ws', item: ws }) }}>
             <select
               value={wid || ''}
               onChange={(e) => {
@@ -1381,8 +1394,8 @@ function Main() {
                 <Icon name="folder" size={15} /> {t('moveFolder')}
               </button>
             )}
-            <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : removeFolder(c.item) }}>
-              <Icon name="trash" size={15} /> {t('delete')}
+            <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : c.kind === 'ws' ? removeRoom(c.item) : removeFolder(c.item) }}>
+              <Icon name="trash" size={15} /> {ctx.kind === 'ws' ? (ctx.item.owner_id === user.id ? t('deleteWs') : t('leave')) : t('delete')}
             </button>
           </div>
         </>
