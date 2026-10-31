@@ -29,7 +29,7 @@ export default function Admin() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
           <thead>
             <tr style={{ textAlign: 'left', color: '#e6c36a' }}>
-              {['E-posta', 'Kayıt', 'Son giriş', 'Not', 'Metin', 'Resim', 'Toplam'].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
+              {['E-posta', 'Kayıt', 'Son giriş', 'Oda', 'Odalardaki not', 'Yazdığı not', 'Metin', 'Resim', 'Toplam'].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -38,6 +38,8 @@ export default function Admin() {
                 <td style={{ padding: '8px 10px' }}>{r.email}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.created_at)}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.last_sign_in)}</td>
+                <td style={{ padding: '8px 10px', fontWeight: 600 }}>{rooms.filter((x) => x.owner_email === r.email).length}</td>
+                <td style={{ padding: '8px 10px', fontWeight: 600 }}>{rooms.filter((x) => x.owner_email === r.email).reduce((a, x) => a + Number(x.notes), 0)}</td>
                 <td style={{ padding: '8px 10px' }}>{r.notes}</td>
                 <td style={{ padding: '8px 10px' }}>{fmt(Number(r.text_bytes))}</td>
                 <td style={{ padding: '8px 10px' }}>{fmt(Number(r.image_bytes))}</td>
