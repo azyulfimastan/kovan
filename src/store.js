@@ -174,6 +174,12 @@ export const cloudStore = {
   async adminDeleteUser(target) {
     ok(await sb.rpc('admin_delete_user', { target }))
   },
+  async adminBannedEmails() {
+    return ok(await sb.rpc('admin_banned_emails'))
+  },
+  async adminUnbanEmail(em) {
+    ok(await sb.rpc('admin_unban_email', { em }))
+  },
   async adminSetBan(target, ban) {
     ok(await sb.rpc('admin_set_ban', { target, ban }))
   },
@@ -234,6 +240,9 @@ export const localStore = {
     return []
   },
   async adminUsers() {
+    return []
+  },
+  async adminBannedEmails() {
     return []
   },
   async getUser() {

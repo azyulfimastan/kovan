@@ -64,3 +64,42 @@ begin
 end $$;
 revoke all on function public.admin_users() from public, anon;
 grant execute on function public.admin_users() to authenticated;
+
+-- Deleted-by-admin users are also banned by e-mail: they cannot sign up again.
+create table if not exists public.banned_emails (email text primary key, banned_at timestamptz not null default now());
+alter table public.banned_emails enable row level security;
+create or replace function public._block_banned_signup() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.banned_emails b where lower(b.email) = lower(new.email)) then
+    raise exception 'banned' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+create or replace trigger block_banned_signup before insert on auth.users for each row execute function public._block_banned_signup();
+create or replace function public.admin_delete_user(target uuid) returns void
+language plpgsql security definer set search_path = public, auth as $$
+declare em text;
+begin
+  if not public._is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  if target = auth.uid() then raise exception 'cannot delete yourself here' using errcode = '22023'; end if;
+  select u.email::text into em from auth.users u where u.id = target;
+  perform public._purge_user(target);
+  if em is not null then insert into public.banned_emails (email) values (lower(em)) on conflict do nothing; end if;
+end $$;
+create or replace function public.admin_banned_emails() returns table (email text, banned_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public._is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  return query select b.email, b.banned_at from public.banned_emails b order by b.banned_at desc;
+end $$;
+create or replace function public.admin_unban_email(em text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public._is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
+  delete from public.banned_emails where email = lower(em);
+end $$;
+revoke all on function public.admin_banned_emails() from public, anon;
+grant execute on function public.admin_banned_emails() to authenticated;
+revoke all on function public.admin_unban_email(text) from public, anon;
+grant execute on function public.admin_unban_email(text) to authenticated;

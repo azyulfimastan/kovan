@@ -10,16 +10,18 @@ export default function Admin() {
   const [rows, setRows] = useState(null)
   const [rooms, setRooms] = useState([])
   const [flags, setFlags] = useState({})
+  const [bans, setBans] = useState([])
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const load = () => {
     store.adminRooms().then(setRooms).catch(() => {})
+    store.adminBannedEmails().then(setBans).catch(() => {})
     store.adminUsers().then((u) => setFlags(Object.fromEntries(u.map((x) => [x.user_id, x])))).catch(() => {})
     return store.adminOverview().then(setRows)
   }
   const act = async (r, kind) => {
     const who = r.email
-    if (kind === 'delete' && !window.confirm(`${who}\n\nBu kullanıcı KALICI olarak silinsin mi? (Sahibi olduğu ve başka üyesi olmayan odalar da silinir.)`)) return
+    if (kind === 'delete' && !window.confirm(`${who}\n\nBu kullanıcı KALICI olarak silinsin ve e-postası banlansın mı? (Aynı e-postayla bir daha kayıt olamaz. Sahibi olduğu ve başka üyesi olmayan odalar da silinir.)`)) return
     if (kind === 'ban' && !window.confirm(`${who} banlansın mı? Giriş yapamaz.`)) return
     setBusy(r.user_id)
     try {
@@ -81,6 +83,26 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
+
+      {bans.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 36 }}>Silinip banlananlar</h2>
+          {bans.map((b) => (
+            <div key={b.email} style={{ padding: '6px 10px', borderTop: '1px solid rgba(255,255,255,.18)' }}>
+              {b.email}
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`${b.email} banı kaldırılsın mı? Tekrar kayıt olabilir.`)) return
+                  try { await store.adminUnbanEmail(b.email); await load() } catch (e) { window.alert(e.message || String(e)) }
+                }}
+                style={{ marginLeft: 12, padding: '3px 10px', borderRadius: 8, background: '#2a3558', color: '#f3f5fb' }}
+              >
+                Banı kaldır
+              </button>
+            </div>
+          ))}
+        </>
+      )}
 
       <h2 style={{ marginTop: 36 }}>Odalar</h2>
       <div style={{ overflowX: 'auto' }}>
