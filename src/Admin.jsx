@@ -8,9 +8,15 @@ const day = (d) => (d ? new Date(d).toLocaleString('tr-TR', { dateStyle: 'medium
 // refused by the database unless the signed-in e-mail is the owner's.
 export default function Admin() {
   const [rows, setRows] = useState(null)
+  const [err, setErr] = useState('')
   useEffect(() => {
-    store.adminOverview().then(setRows).catch(() => { window.location.replace('/') })
+    store.adminOverview().then(setRows).catch((e) => {
+      // not the owner -> look like nothing is here; anything else -> show why
+      if (!e || e.code === '42501' || /not allowed|cloud only/.test(e.message || '')) window.location.replace('/')
+      else setErr(`${e.code || ''} ${e.message || e}`)
+    })
   }, [])
+  if (err) return <pre style={{ padding: 24, color: '#f88', whiteSpace: 'pre-wrap' }}>{err}</pre>
   if (!rows) return null
   const total = rows.reduce((a, r) => a + Number(r.text_bytes) + Number(r.image_bytes), 0)
   return (
