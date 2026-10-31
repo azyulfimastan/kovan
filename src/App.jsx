@@ -88,6 +88,7 @@ function Main() {
   const [selMode, setSelMode] = useState(false)
   const [selIds, setSelIds] = useState([])
   const [bulkMove, setBulkMove] = useState(false)
+  const [delAcc, setDelAcc] = useState(null) // null | { text: '', busy: false, err: '' }
   const [focusMode, setFocusMode] = useState(false)
   const lastCard = useRef(null)
   const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
@@ -1160,6 +1161,9 @@ function Main() {
               <button className="icon-btn" onClick={signOut} title={t('signOut')}>
                 <Icon name="logout" size={16} />
               </button>
+              <button className="icon-btn danger-ico" onClick={() => setDelAcc({ text: '', busy: false, err: '' })} title={t('deleteAccount')}>
+                <Icon name="trash" size={16} />
+              </button>
             </div>
           )}
           <div className="foot-row">
@@ -1494,6 +1498,42 @@ function Main() {
             </button>
           </div>
         </>
+      )}
+
+      {delAcc && (
+        <div className="overlay" onMouseDown={() => !delAcc.busy && setDelAcc(null)}>
+          <form
+            className="dialog small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (delAcc.text.trim().toLowerCase() !== (user.email || '').toLowerCase()) return
+              setDelAcc((d) => ({ ...d, busy: true, err: '' }))
+              try {
+                await store.deleteMyAccount()
+                window.location.replace('/')
+              } catch (err) {
+                setDelAcc((d) => ({ ...d, busy: false, err: err.message || String(err) }))
+              }
+            }}
+          >
+            <div className="dlg-head">
+              <h3>{t('deleteAccount')}</h3>
+            </div>
+            <p className="muted">{t('deleteAccountWarn')}</p>
+            <p className="muted">{t('typeEmail', { email: user.email })}</p>
+            <input className="code-input" autoFocus autoComplete="off" value={delAcc.text} onChange={(e) => setDelAcc((d) => ({ ...d, text: e.target.value }))} placeholder={user.email} />
+            {delAcc.err && <p style={{ color: '#ff7b7b' }}>{delAcc.err}</p>}
+            <div className="dlg-foot">
+              <button type="button" className="btn" onClick={() => setDelAcc(null)} disabled={delAcc.busy}>
+                {t('cancel')}
+              </button>
+              <button type="submit" className="btn danger" disabled={delAcc.busy || delAcc.text.trim().toLowerCase() !== (user.email || '').toLowerCase()}>
+                {t('deleteAccountGo')}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {bulkMove && (

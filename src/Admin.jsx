@@ -9,10 +9,30 @@ const day = (d) => (d ? new Date(d).toLocaleString('tr-TR', { dateStyle: 'medium
 export default function Admin() {
   const [rows, setRows] = useState(null)
   const [rooms, setRooms] = useState([])
+  const [flags, setFlags] = useState({})
+  const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
-  useEffect(() => {
+  const load = () => {
     store.adminRooms().then(setRooms).catch(() => {})
-    store.adminOverview().then(setRows).catch((e) => {
+    store.adminUsers().then((u) => setFlags(Object.fromEntries(u.map((x) => [x.user_id, x])))).catch(() => {})
+    return store.adminOverview().then(setRows)
+  }
+  const act = async (r, kind) => {
+    const who = r.email
+    if (kind === 'delete' && !window.confirm(`${who}\n\nBu kullanıcı KALICI olarak silinsin mi? (Sahibi olduğu ve başka üyesi olmayan odalar da silinir.)`)) return
+    if (kind === 'ban' && !window.confirm(`${who} banlansın mı? Giriş yapamaz.`)) return
+    setBusy(r.user_id)
+    try {
+      if (kind === 'delete') await store.adminDeleteUser(r.user_id)
+      else await store.adminSetBan(r.user_id, kind === 'ban')
+      await load()
+    } catch (e) {
+      window.alert(e.message || String(e))
+    }
+    setBusy('')
+  }
+  useEffect(() => {
+    load().catch((e) => {
       // not the owner -> look like nothing is here; anything else -> show why
       if (!e || e.code === '42501' || /not allowed|cloud only/.test(e.message || '')) window.location.replace('/')
       else setErr(`${e.code || ''} ${e.message || e}`)
@@ -29,13 +49,13 @@ export default function Admin() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
           <thead>
             <tr style={{ textAlign: 'left', color: '#e6c36a' }}>
-              {['E-posta', 'Kayıt', 'Son giriş', 'Oda', 'Odalardaki not', 'Yazdığı not', 'Metin', 'Resim', 'Toplam'].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
+              {['E-posta', 'Kayıt', 'Son giriş', 'Oda', 'Odalardaki not', 'Yazdığı not', 'Metin', 'Resim', 'Toplam', ''].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.user_id} style={{ borderTop: '1px solid rgba(255,255,255,.18)' }}>
-                <td style={{ padding: '8px 10px' }}>{r.email}</td>
+                <td style={{ padding: '8px 10px' }}>{r.email}{flags[r.user_id]?.banned && <b style={{ color: '#ff7b7b', marginLeft: 8 }}>BANLI</b>}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.created_at)}</td>
                 <td style={{ padding: '8px 10px' }}>{day(r.last_sign_in)}</td>
                 <td style={{ padding: '8px 10px', fontWeight: 600 }}>{rooms.filter((x) => x.owner_email === r.email).length}</td>
@@ -44,6 +64,18 @@ export default function Admin() {
                 <td style={{ padding: '8px 10px' }}>{fmt(Number(r.text_bytes))}</td>
                 <td style={{ padding: '8px 10px' }}>{fmt(Number(r.image_bytes))}</td>
                 <td style={{ padding: '8px 10px', fontWeight: 600 }}>{fmt(Number(r.text_bytes) + Number(r.image_bytes))}</td>
+                <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                  {flags[r.user_id] && !flags[r.user_id].is_admin && (
+                    <>
+                      <button disabled={busy === r.user_id} onClick={() => act(r, flags[r.user_id].banned ? 'unban' : 'ban')} style={{ marginRight: 6, padding: '4px 10px', borderRadius: 8, background: '#2a3558', color: '#f3f5fb' }}>
+                        {flags[r.user_id].banned ? 'Banı kaldır' : 'Banla'}
+                      </button>
+                      <button disabled={busy === r.user_id} onClick={() => act(r, 'delete')} style={{ padding: '4px 10px', borderRadius: 8, background: '#7a2230', color: '#fff' }}>
+                        Sil
+                      </button>
+                    </>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1862,3 +1862,6 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .list-head > .sort-toggle, .list-head > .sel-toggle, .list-head > .top-plus, .list-head > .peers { flex: none; }
 .list-title .color-btn { font-size: 0; gap: 0; padding: 7px 9px; }
 .list-title .color-btn .f-dot { width: 14px; height: 14px; }
+
+.icon-btn.danger-ico:hover { color: var(--danger, #ff7b7b); background: rgba(255, 90, 90, 0.12); }
+.me .icon-btn { flex: none; }

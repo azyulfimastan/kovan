@@ -168,6 +168,19 @@ export const cloudStore = {
   async adminRooms() {
     return ok(await sb.rpc('admin_rooms'))
   },
+  async adminUsers() {
+    return ok(await sb.rpc('admin_users'))
+  },
+  async adminDeleteUser(target) {
+    ok(await sb.rpc('admin_delete_user', { target }))
+  },
+  async adminSetBan(target, ban) {
+    ok(await sb.rpc('admin_set_ban', { target, ban }))
+  },
+  async deleteMyAccount() {
+    ok(await sb.rpc('delete_my_account'))
+    await sb.auth.signOut()
+  },
   async uploadImage(wid, file) {
     const path = `${wid}/${crypto.randomUUID()}.${file.type === 'image/gif' ? 'gif' : 'jpg'}`
     const { error } = await sb.storage.from('note-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
@@ -218,6 +231,9 @@ export const localStore = {
     throw new Error('cloud only')
   },
   async adminRooms() {
+    return []
+  },
+  async adminUsers() {
     return []
   },
   async getUser() {
