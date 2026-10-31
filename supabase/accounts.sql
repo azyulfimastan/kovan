@@ -2,7 +2,7 @@
 
 create or replace function public._is_admin() returns boolean
 language sql stable as $$
-  select coalesce(auth.jwt() ->> 'email', '') in ('mastan96pl@gmail.com', 'azyulfimastan@gmail.com', 'kulaahmet96@gmail.com')
+  select coalesce(auth.jwt() ->> 'email', '') in ('azyulfimastan@gmail.com', 'kulaahmet96@gmail.com')
 $$;
 
 -- Removes a user. Rooms they own that still have other members are handed to the longest-standing member;
@@ -59,7 +59,7 @@ begin
   if not public._is_admin() then raise exception 'not allowed' using errcode = '42501'; end if;
   return query select u.id, u.email::text, u.created_at, u.last_sign_in_at,
     coalesce(u.banned_until > now(), false),
-    u.email in ('mastan96pl@gmail.com', 'azyulfimastan@gmail.com', 'kulaahmet96@gmail.com')
+    u.email in ('azyulfimastan@gmail.com', 'kulaahmet96@gmail.com')
   from auth.users u;
 end $$;
 revoke all on function public.admin_users() from public, anon;

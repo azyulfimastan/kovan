@@ -6,7 +6,7 @@ returns table (
 )
 language plpgsql security definer set search_path = public, auth, storage as $$
 begin
-  if coalesce(auth.jwt() ->> 'email', '') not in ('mastan96pl@gmail.com', 'azyulfimastan@gmail.com', 'kulaahmet96@gmail.com') then
+  if coalesce(auth.jwt() ->> 'email', '') not in ('azyulfimastan@gmail.com', 'kulaahmet96@gmail.com') then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   return query
@@ -26,7 +26,7 @@ create or replace function public.admin_rooms()
 returns table (ws_id uuid, name text, owner_email text, members bigint, notes bigint, bytes bigint)
 language plpgsql security definer set search_path = public, auth as $$
 begin
-  if coalesce(auth.jwt() ->> 'email', '') not in ('mastan96pl@gmail.com', 'azyulfimastan@gmail.com', 'kulaahmet96@gmail.com') then
+  if coalesce(auth.jwt() ->> 'email', '') not in ('azyulfimastan@gmail.com', 'kulaahmet96@gmail.com') then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   return query
