@@ -1709,5 +1709,21 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.focus-mode .rich { font-size: 19px; line-height: 1.75; }
 }
 
-.folder-chip.at-end { margin: 28px 0 8px; }
 .ws-more { flex: 0 0 auto; }
+
+/* bottom bar: two compact rows, never scrolls sideways */
+.kb-bar { flex-direction: column; align-items: center; gap: 4px; overflow: visible; }
+.kb-row { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-width: 0; }
+.kb-bar .kb-row > button { flex: 1 1 0; min-width: 0; max-width: 46px; height: 38px; padding: 0; }
+.kb-bar .size-ctl.in-bar { flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
+.kb-bar .folder-chip { margin: 0; flex: 1 1 0; min-width: 0; max-width: 220px; height: 38px; padding: 0 10px; }
+.kb-bar .folder-chip select { flex: 1; min-width: 0; max-width: none; width: 100%; }
+.kb-bar.desk { max-width: min(92vw, 520px); }
+@media (min-width: 721px) {
+  .kb-bar.desk { flex-direction: row; max-width: min(94vw, 900px); }
+  .kb-bar.desk .kb-row { width: auto; }
+}
+@media (min-width: 721px) {
+  .kb-bar.desk { left: 0; right: 0; margin: 0 auto; transform: none; width: max-content; }
+  .kb-bar.desk .kb-row > button { flex: 0 0 38px; }
+}

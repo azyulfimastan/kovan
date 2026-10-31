@@ -230,6 +230,7 @@ export default function Editor({
   const [lightbox, setLightbox] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [focused, setFocused] = useState(false)
+  const [barHold, setBarHold] = useState(false)
   const [kbBottom, setKbBottom] = useState(0)
   const [touch, setTouch] = useState(() => !!window.matchMedia?.('(pointer: coarse), (max-width: 720px)').matches)
   const dismissed = useRef(null)
@@ -537,19 +538,6 @@ export default function Editor({
             </div>
           )}
 
-          <label className={`folder-chip at-end ${note.folder_id ? 'set' : ''}`}>
-            <Icon name="folder" size={15} />
-            <select value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
-              <option value="">{note.folder_id ? t('removeFromFolder') : t('pickFolder')}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            <Icon name="chevron" size={13} />
-          </label>
-
           {backlinks.length > 0 && (
             <section className="backlinks">
               <h4>
@@ -569,19 +557,41 @@ export default function Editor({
 
       <SizeBox editor={editor} show={focused} t={t} />
 
-      {(touch ? focused : true) && (
-        <div className={`kb-bar ${touch ? '' : 'desk'}`} style={touch ? { bottom: kbBottom } : undefined} onPointerDown={(e) => e.preventDefault()}>
-          {TB.map((b) => (
-            <button key={b.k} className={`${b.cls || ''} ${isOn(b) ? 'on' : ''}`} title={t(b.k)} onClick={b.run}>
-              {b.label}
-            </button>
-          ))}
-          <SizeCtl editor={editor} t={t} className="in-bar" />
-          {onUpload && (
-            <button title={t('addImage')} onClick={() => fileRef.current?.click()}>
-              <Icon name="image" size={18} />
-            </button>
-          )}
+      {(touch ? focused || barHold : true) && (
+        <div
+          className={`kb-bar ${touch ? '' : 'desk'}`}
+          style={touch ? { bottom: kbBottom } : undefined}
+          onPointerDown={(e) => !e.target.closest('select, input') && e.preventDefault()}
+          onFocus={() => setBarHold(true)}
+          onBlur={() => setBarHold(false)}
+        >
+          <div className="kb-row">
+            {TB.map((b) => (
+              <button key={b.k} className={`${b.cls || ''} ${isOn(b) ? 'on' : ''}`} title={t(b.k)} onClick={b.run}>
+                {b.label}
+              </button>
+            ))}
+            {onUpload && (
+              <button title={t('addImage')} onClick={() => fileRef.current?.click()}>
+                <Icon name="image" size={18} />
+              </button>
+            )}
+          </div>
+          <div className="kb-row">
+            <SizeCtl editor={editor} t={t} className="in-bar" />
+            <label className={`folder-chip ${note.folder_id ? 'set' : ''}`}>
+                        <Icon name="folder" size={15} />
+                        <select value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
+                          <option value="">{note.folder_id ? t('removeFromFolder') : t('pickFolder')}</option>
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Icon name="chevron" size={13} />
+                      </label>
+          </div>
         </div>
       )}
 
