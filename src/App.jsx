@@ -83,6 +83,8 @@ function Main() {
   const [folderMenu, setFolderMenu] = useState(false)
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
+  const [sortAsc, setSortAsc] = useState(() => { try { return localStorage.getItem('kovan.sortAsc') === '1' } catch { return false } })
+  const flipSort = () => setSortAsc((v) => { try { localStorage.setItem('kovan.sortAsc', v ? '0' : '1') } catch {} return !v })
   const [selMode, setSelMode] = useState(false)
   const [selIds, setSelIds] = useState([])
   const [bulkMove, setBulkMove] = useState(false)
@@ -514,8 +516,8 @@ function Main() {
         filter.kind === 'pinned' ? n.pinned : filter.kind === 'folder' ? n.folder_id === filter.id : true,
       )
       .filter((n) => !q || norm(n.title).includes(q) || norm(n.body).includes(q))
-      .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (a.updated_at < b.updated_at ? 1 : -1))
-  }, [notes, filter, query])
+      .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (a.updated_at < b.updated_at ? 1 : -1) * (sortAsc ? -1 : 1))
+  }, [notes, filter, query, sortAsc])
 
   const backlinks = useMemo(() => {
     if (!activeNote || !activeNote.title.trim()) return []
@@ -1232,6 +1234,9 @@ function Main() {
               ))}
             </div>
           )}
+          <button className="sort-toggle" onClick={flipSort} title={sortAsc ? t('sortOldFirst') : t('sortNewFirst')}>
+            {sortAsc ? '↑' : '↓'}
+          </button>
           <button className={`sel-toggle ${selMode ? 'on' : ''}`} onClick={() => (selMode ? exitSel() : setSelMode(true))} title={t('select')}>
             {selMode ? t('done') : t('select')}
           </button>
