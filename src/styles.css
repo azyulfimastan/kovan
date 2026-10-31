@@ -1794,3 +1794,8 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.hover-nav.side-open.focus-mode { padding-left: env(safe-area-inset-left); }
   .shell.focus-mode .edge-arrow { display: none !important; }
 }
+
+@media (min-width: 721px) {
+  .shell.focus-mode .ed-page { max-width: min(1180px, 94vw); padding: 28px 40px 90px; }
+  .shell.focus-mode .ed-title { font-size: 40px; }
+}
