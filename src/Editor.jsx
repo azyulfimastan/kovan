@@ -5,6 +5,7 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Placeholder } from '@tiptap/extensions'
+import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
@@ -130,7 +131,16 @@ function RichText({ note, live, placeholder, events, onEditor }) {
   })
   useEffect(() => {
     onEditor(editor)
-    return () => onEditor(null)
+    // collaborative undo (Yjs): keep at most 20 steps
+    let um, cap
+    if (live && editor) {
+      try {
+        um = yUndoPluginKey.getState(editor.state)?.undoManager
+        cap = () => { while (um.undoStack.length > 20) um.undoStack.shift() }
+        um?.on('stack-item-added', cap)
+      } catch {}
+    }
+    return () => { onEditor(null); try { um?.off('stack-item-added', cap) } catch {} }
   }, [editor, onEditor])
   return <EditorContent editor={editor} className="ed-rich" />
 }
@@ -404,6 +414,8 @@ export default function Editor({
 
   const run = (f) => () => editor && f(editor.chain().focus()).run()
   const TB = [
+    { k: 'undo', label: '↶', run: run((c) => c.undo()) },
+    { k: 'redo', label: '↷', run: run((c) => c.redo()) },
     { k: 'tbBold', label: 'B', cls: 'b', on: 'bold', run: run((c) => c.toggleBold()) },
     { k: 'tbItalic', label: 'I', cls: 'i', on: 'italic', run: run((c) => c.toggleItalic()) },
     { k: 'tbHeading', label: 'H', on: ['heading', { level: 2 }], run: run((c) => c.toggleHeading({ level: 2 })) },

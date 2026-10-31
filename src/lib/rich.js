@@ -77,6 +77,7 @@ export function baseExtensions({ collab = false } = {}) {
     link: { openOnClick: false, autolink: true, linkOnPaste: true },
   }
   if (collab) kit.undoRedo = false
+  else kit.undoRedo = { depth: 20 }
   return [StarterKit.configure(kit), TaskList, TaskItem.configure({ nested: true }), Image, FontSize]
 }
 
