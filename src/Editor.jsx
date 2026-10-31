@@ -5,6 +5,7 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Placeholder } from '@tiptap/extensions'
+import { closeHistory } from '@tiptap/pm/history'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret'
@@ -85,7 +86,19 @@ function RichText({ note, live, placeholder, events, onEditor }) {
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: { class: 'rich prose', spellcheck: 'true' },
-      handleKeyDown: (_v, e) => ev.current.key(e) || false,
+      handleKeyDown: (v, e) => {
+        if (e.key === 'Enter' && !e.isComposing) {
+          // each Enter closes an undo step: line + Enter = one Ctrl+Z
+          setTimeout(() => {
+            try {
+              const um = yUndoPluginKey.getState(v.state)?.undoManager
+              if (um) um.stopCapturing()
+              else v.dispatch(closeHistory(v.state.tr))
+            } catch {}
+          }, 0)
+        }
+        return ev.current.key(e) || false
+      },
       handlePaste: (v, e) => {
         if (pasteYouTube(v, e.clipboardData?.getData('text/plain'))) return true
         const fs = imageFiles(e.clipboardData?.files)
