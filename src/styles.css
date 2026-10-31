@@ -1708,3 +1708,6 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.focus-mode .ed-title { font-size: 46px; }
   .shell.focus-mode .rich { font-size: 19px; line-height: 1.75; }
 }
+
+.folder-chip.at-end { margin: 28px 0 8px; }
+.ws-more { flex: 0 0 auto; }

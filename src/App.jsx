@@ -960,6 +960,11 @@ function Main() {
             </select>
             <Icon name="chevron" size={14} />
           </div>
+          {cloud && ws && (
+            <button className="icon-btn ws-more" title={t('more')} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCtx({ x: r.left, y: r.bottom + 4, kind: 'ws', item: ws }) }}>
+              <Icon name="dots" size={16} />
+            </button>
+          )}
         </div>
 
         {cloud && (

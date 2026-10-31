@@ -507,19 +507,6 @@ export default function Editor({
             }}
           />
 
-          <label className={`folder-chip ${note.folder_id ? 'set' : ''}`}>
-            <Icon name="folder" size={15} />
-            <select value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
-              <option value="">{note.folder_id ? t('removeFromFolder') : t('pickFolder')}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            <Icon name="chevron" size={13} />
-          </label>
-
           {ready ? (
             <RichText
               key={live ? live.id + ':live' : 'solo'}
@@ -549,6 +536,19 @@ export default function Editor({
               ))}
             </div>
           )}
+
+          <label className={`folder-chip at-end ${note.folder_id ? 'set' : ''}`}>
+            <Icon name="folder" size={15} />
+            <select value={note.folder_id || ''} onChange={(e) => onFolder(e.target.value)} title={t('moveFolder')}>
+              <option value="">{note.folder_id ? t('removeFromFolder') : t('pickFolder')}</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <Icon name="chevron" size={13} />
+          </label>
 
           {backlinks.length > 0 && (
             <section className="backlinks">
