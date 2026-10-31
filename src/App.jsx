@@ -955,30 +955,37 @@ function Main() {
           </button>
         </div>
 
-        <div className="ws-row">
-          <div className="select-wrap" onContextMenu={(e) => { if (!cloud || !ws) return; e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'ws', item: ws }) }}>
-            <select
-              value={wid || ''}
-              onChange={(e) => {
-                if (e.target.value === '__new') setDialog('newws')
-                else setWid(e.target.value)
-              }}
-              aria-label={t('notebooks')}
-            >
-              {workspaces.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-              {cloud && <option value="__new">＋ {t('newNotebook')}</option>}
-            </select>
-            <Icon name="chevron" size={14} />
+        <div className="rooms">
+          <div className="room-tiles">
+            {workspaces.map((w) => {
+              const hue = [...String(w.id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FOLDER_COLORS.length
+              return (
+                <button
+                  key={w.id}
+                  className={`room-tile ${w.id === wid ? 'on' : ''}`}
+                  style={{ '--rc': FOLDER_COLORS[hue] }}
+                  title={w.name}
+                  onClick={() => { if (w.id !== wid) setWid(w.id) }}
+                  onContextMenu={(e) => { if (!cloud) return; e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'ws', item: w }) }}
+                >
+                  {(w.name || '?').trim().slice(0, 1).toUpperCase()}
+                </button>
+              )
+            })}
+            {cloud && (
+              <button className="room-tile add" title={t('newNotebook')} onClick={() => setDialog('newws')}>
+                <Icon name="plus" size={16} />
+              </button>
+            )}
           </div>
-          {cloud && ws && (
-            <button className="icon-btn ws-more" title={t('more')} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCtx({ x: r.left, y: r.bottom + 4, kind: 'ws', item: ws }) }}>
-              <Icon name="dots" size={16} />
-            </button>
-          )}
+          <div className="room-name">
+            <strong>{ws?.name || ''}</strong>
+            {cloud && ws && (
+              <button className="icon-btn ws-more" title={t('more')} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCtx({ x: r.left, y: r.bottom + 4, kind: 'ws', item: ws }) }}>
+                <Icon name="dots" size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
         {cloud && (

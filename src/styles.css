@@ -1758,3 +1758,13 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .rich ul, .rich ol { margin: 0.2em 0; }
 .rich li { margin: 0; }
 .rich h1, .rich h2, .rich h3 { margin: 0.7em 0 0.2em; line-height: 1.2; }
+
+/* rooms as squares */
+.rooms { display: flex; flex-direction: column; gap: 8px; }
+.room-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.room-tile { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font: 800 18px var(--serif); color: #fff; background: var(--rc, var(--honey)); opacity: 0.72; border: 2px solid transparent; transition: transform 0.12s, opacity 0.12s; }
+.room-tile:hover { opacity: 1; transform: translateY(-1px); }
+.room-tile.on { opacity: 1; border-color: var(--ink); box-shadow: 0 0 0 2px var(--panel2), 0 0 0 4px var(--rc); }
+.room-tile.add { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); opacity: 1; font-size: 14px; }
+.room-name { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
+.room-name strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
