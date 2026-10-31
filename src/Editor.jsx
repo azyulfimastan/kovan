@@ -575,7 +575,6 @@ export default function Editor({
         </div>
       </div>
 
-      <SizeBox editor={editor} show={focused} t={t} />
 
       {(touch ? focused || barHold : true) && (
         <div
