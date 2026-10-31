@@ -1727,3 +1727,6 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .kb-bar.desk { left: 0; right: 0; margin: 0 auto; transform: none; width: max-content; }
   .kb-bar.desk .kb-row > button { flex: 0 0 38px; }
 }
+
+/* empty paragraphs shouldn't leave a huge gap between two lines */
+.rich p:has(> br:only-child:last-child), .rich p:empty { line-height: 0.7; margin: 0; min-height: 0.7em; }
