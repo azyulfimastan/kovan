@@ -125,51 +125,71 @@ function RichText({ note, live, placeholder, events, onEditor }) {
 
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
 
-// Small box above a text selection: − [size] + (steps) or type any size by hand.
-function SizeBox({ editor, show, t }) {
+function sizeOps(editor) {
+  const base = Math.round(parseFloat(getComputedStyle(editor.view.dom).fontSize) || 16)
+  const attr = editor.getAttributes('fontSize').size
+  const cur = Math.round(attr || base)
+  const apply = (v) => {
+    const n = Math.max(6, Math.min(160, Math.round(Number(v))))
+    if (!n) return
+    if (n === base) editor.chain().focus().unsetFontSize().run()
+    else editor.chain().focus().setFontSize(n).run()
+  }
+  return {
+    cur,
+    marked: !!attr,
+    apply,
+    up: () => apply(SIZES.find((x) => x > cur) || cur + 8),
+    down: () => apply([...SIZES].reverse().find((x) => x < cur) || Math.max(6, cur - 2)),
+    reset: () => editor.chain().focus().unsetFontSize().run(),
+  }
+}
+
+// − [size] + control (used in the bottom bar and in the box above a selection)
+function SizeCtl({ editor, t, className = '', onHold }) {
   const [txt, setTxt] = useState(null)
+  if (!editor || editor.isDestroyed) return null
+  const o = sizeOps(editor)
+  const keep = (e) => e.preventDefault()
+  const commit = (v) => { setTxt(null); o.apply(v) }
+  return (
+    <div className={`size-ctl ${className}`} onFocus={() => onHold?.(true)} onBlur={() => onHold?.(false)}>
+      <button onMouseDown={keep} onClick={o.down} aria-label="−" title={t('sizeSmaller')}>−</button>
+      <input
+        inputMode="numeric"
+        value={txt ?? String(o.cur)}
+        onChange={(e) => setTxt(e.target.value.replace(/\D/g, '').slice(0, 3))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(txt ?? o.cur) }
+          if (e.key === 'Escape') { setTxt(null); editor.commands.focus() }
+        }}
+        onBlur={() => txt != null && commit(txt)}
+        onFocus={(e) => e.target.select()}
+      />
+      <button onMouseDown={keep} onClick={o.up} aria-label="+" title={t('sizeBigger')}>+</button>
+      {o.marked && (
+        <button className="rs" onMouseDown={keep} onClick={o.reset} title={t('sizeReset')}>
+          ↺
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Small box above a text selection.
+function SizeBox({ editor, show, t }) {
   const [hold, setHold] = useState(false)
   if (!editor || editor.isDestroyed) return null
   const { selection: sel } = editor.state
   if (sel.empty || sel.node || sel.$from.parent.type.name === 'codeBlock' || !(show || hold)) return null
-  const base = Math.round(parseFloat(getComputedStyle(editor.view.dom).fontSize) || 16)
-  const cur = Math.round(editor.getAttributes('fontSize').size || base)
-  const marked = !!editor.getAttributes('fontSize').size
   let c
   try { c = editor.view.coordsAtPos(sel.from) } catch { return null }
   let top = c.top - 52
   if (top < 8) top = editor.view.coordsAtPos(sel.to).bottom + 10
   const left = Math.max(8, Math.min(c.left - 10, window.innerWidth - 190))
-  const apply = (v) => {
-    const n = Math.max(6, Math.min(160, Math.round(Number(v))))
-    if (!n) return
-    setTxt(null)
-    if (n === base) editor.chain().focus().unsetFontSize().run()
-    else editor.chain().focus().setFontSize(n).run()
-  }
-  const up = () => apply(SIZES.find((x) => x > cur) || cur + 8)
-  const down = () => apply([...SIZES].reverse().find((x) => x < cur) || Math.max(6, cur - 2))
-  const keep = (e) => e.preventDefault()
   return (
-    <div className="size-box" style={{ top, left }} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
-      <button onMouseDown={keep} onClick={down} aria-label="−">−</button>
-      <input
-        inputMode="numeric"
-        value={txt ?? String(cur)}
-        onChange={(e) => setTxt(e.target.value.replace(/\D/g, '').slice(0, 3))}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); apply(txt ?? cur) }
-          if (e.key === 'Escape') { setTxt(null); editor.commands.focus() }
-        }}
-        onBlur={() => txt != null && apply(txt)}
-        onFocus={(e) => e.target.select()}
-      />
-      <button onMouseDown={keep} onClick={up} aria-label="+">+</button>
-      {marked && (
-        <button className="rs" onMouseDown={keep} onClick={() => editor.chain().focus().unsetFontSize().run()} title={t('sizeReset')}>
-          ↺
-        </button>
-      )}
+    <div className="size-box" style={{ top, left }}>
+      <SizeCtl editor={editor} t={t} onHold={setHold} />
     </div>
   )
 }
@@ -267,10 +287,6 @@ export default function Editor({
       .map((n) => ({ id: n.id, label: n.title, title: n.title }))
   }, [pop, notes, note.id, t, lang])
 
-  const words = useMemo(() => {
-    const plain = (note.body || '').replace(/[#>*_`~[\]()!-]|<\/?p>/g, ' ').trim()
-    return plain ? plain.split(/\s+/).length : 0
-  }, [note.body])
   const attached = note.images || []
 
   // "/" and "[[" menus
@@ -534,10 +550,6 @@ export default function Editor({
             </div>
           )}
 
-          <footer className="ed-foot">
-            <span>{t('words', { n: words })}</span>
-          </footer>
-
           {backlinks.length > 0 && (
             <section className="backlinks">
               <h4>
@@ -564,6 +576,7 @@ export default function Editor({
               {b.label}
             </button>
           ))}
+          <SizeCtl editor={editor} t={t} className="in-bar" />
           {onUpload && (
             <button title={t('addImage')} onClick={() => fileRef.current?.click()}>
               <Icon name="image" size={18} />
