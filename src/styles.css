@@ -1856,7 +1856,6 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .sort-toggle:hover { background: var(--honey-soft); color: var(--honey-strong); }
 
 /* long folder names: shrink the title (ellipsis) instead of pushing the buttons out of the header */
-.list-title { overflow: hidden; }
 .title-btn { min-width: 0; flex: 0 1 auto; }
 .title-btn h2 { min-width: 0; }
 .title-btn svg, .list-title .muted, .list-title .color-btn { flex: none; }
