@@ -1842,3 +1842,7 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 .card-folder { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; max-width: 100%; padding: 2px 8px 2px 6px; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--muted); font-size: 11.5px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-folder i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* desktop: the format bar lives inside the editor pane and never covers the text */
+.kb-bar.desk { position: absolute; left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); }
+.editor:has(.kb-bar.desk) .ed-page { padding-bottom: 150px; }
