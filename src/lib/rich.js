@@ -68,8 +68,18 @@ export const schema = getSchema(baseExtensions())
 // ---------- Markdown -> HTML (what the editor understands) ----------
 const md = new Marked({ gfm: true, breaks: true })
 
+// Repair for notes saved by an older build: a paragraph that began with spaces plus a font-size span
+// was read back as a code block full of raw <span> text.
+function repair(src) {
+  return (src || '')
+    .replace(/^```[^\n]*\n([\s\S]*?)\n```[ \t]*$/gm, (m, body) =>
+      /^\s*<span style="font-size:[\d.]+px">/.test(body) && /<\/span>\s*$/.test(body) ? body.trim() : m,
+    )
+    .replace(/^[ \t\u00a0]+(<span style="font-size)/gm, '$1')
+}
+
 export function mdToHtml(src) {
-  const html = md.parse(src || '')
+  const html = md.parse(repair(src))
   const box = document.createElement('div')
   box.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ['checked'] })
   // images sit on their own line in the editor
@@ -180,7 +190,8 @@ function inline(nodes = []) {
 function para(node) {
   return inline(node.content)
     .split('\n')
-    .map(escLine)
+    // leading spaces would turn the line into an indented code block
+    .map((l) => escLine(l.replace(/^[ \t\u00a0]+/, '')))
     .join('\n')
 }
 
