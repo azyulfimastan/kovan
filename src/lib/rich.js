@@ -4,6 +4,8 @@ import { generateJSON, getSchema, Mark } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import Image from '@tiptap/extension-image'
+import { Plugin } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -18,6 +20,31 @@ export const FontSize = Mark.create({
   },
   renderHTML({ mark }) {
     return ['span', { style: `font-size:${mark.attrs.size}px` }, 0]
+  },
+  // a paragraph whose text is all one size gets that size itself, so its line height shrinks/grows with it
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations(state) {
+            const decos = []
+            state.doc.descendants((node, pos) => {
+              if (node.type.name !== 'paragraph' || !node.childCount) return
+              let size = null
+              let ok = true
+              node.forEach((c) => {
+                if (!ok || !c.isText) return
+                const m = c.marks.find((x) => x.type.name === 'fontSize')
+                if (!m || (size && m.attrs.size !== size)) ok = false
+                else size = m.attrs.size
+              })
+              if (ok && size) decos.push(Decoration.node(pos, pos + node.nodeSize, { style: `font-size:${size}px` }))
+            })
+            return DecorationSet.create(state.doc, decos)
+          },
+        },
+      }),
+    ]
   },
   addCommands() {
     return {
