@@ -121,9 +121,15 @@ function Main() {
   const [joinBusy, setJoinBusy] = useState(false)
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
-  const [sidePinned, setSidePinned] = useState(() => window.innerWidth > 720) // the menu is always open on desktop
-  const closeSide = () => !sidePinned && !hoverNav && setSideOpen(false)
-  const hoverNav = !sidePinned && window.innerWidth > 720 && !!window.matchMedia?.('(hover: hover)').matches
+  const [wide, setWide] = useState(() => window.innerWidth > 720)
+  const [collapsed, setCollapsed] = useState(false) // desktop: menu slid away with the edge arrow
+  useEffect(() => {
+    const f = () => setWide(window.innerWidth > 720)
+    window.addEventListener('resize', f)
+    return () => window.removeEventListener('resize', f)
+  }, [])
+  const sidePinned = wide && !collapsed
+  const closeSide = () => !wide && setSideOpen(false)
   const [toast, setToast] = useState('')
   // "install as an app" (Android/desktop prompt, iOS instructions)
   const [installEvt, setInstallEvt] = useState(null)
@@ -884,10 +890,10 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${hoverNav ? 'hover-nav' : ''} ${pageColor ? 'has-fc' : ''} ${focusMode && activeNote && view === 'notes' ? 'focus-mode' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${wide ? 'desk' : ''} ${wide && collapsed ? 'collapsed' : ''} ${pageColor ? 'has-fc' : ''} ${focusMode && activeNote && view === 'notes' ? 'focus-mode' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
-      {hoverNav && !sideOpen && (
-        <button className="edge-arrow" onClick={() => setSideOpen(true)} title={t('menu')} aria-label={t('menu')}>
+      {wide && !(focusMode && activeNote && view === 'notes') && (
+        <button className={`side-toggle ${collapsed ? 'closed' : ''}`} onClick={() => setCollapsed((c) => !c)} title={t('menu')} aria-label={t('menu')}>
           <Icon name="chevron" size={18} />
         </button>
       )}

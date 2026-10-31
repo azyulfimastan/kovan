@@ -1801,3 +1801,21 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.focus-mode .ed-title { font-size: 36px; margin-bottom: 8px; }
   .shell.focus-mode .ed-bar { padding-top: 6px; padding-bottom: 6px; }
 }
+
+/* desktop: the menu is a fixed panel that slides away; the arrow on its edge toggles it */
+.side-toggle { display: none; }
+@media (min-width: 721px) {
+  .shell.desk { grid-template-columns: 330px minmax(0, 1fr); padding-left: 256px; transition: padding-left 0.22s ease; }
+  .shell.desk.is-graph { grid-template-columns: minmax(0, 1fr); }
+  .shell.desk.collapsed { padding-left: 0; }
+  .shell.desk .side { position: fixed; inset: 0 auto 0 0; width: 256px; transform: none; box-shadow: none; z-index: 40; transition: transform 0.22s ease; }
+  .shell.desk.collapsed .side { transform: translateX(-102%); }
+  .shell.desk .scrim { display: none !important; }
+  .shell.desk .only-mid { display: none !important; }
+  .shell.desk.focus-mode { grid-template-columns: minmax(0, 1fr); padding-left: 0; }
+  .side-toggle { display: grid; place-items: center; position: fixed; z-index: 41; left: 256px; top: 52%; width: 22px; height: 60px; margin-left: -1px; border-radius: 0 14px 14px 0; background: var(--panel); border: 1px solid var(--line); border-left: 0; color: var(--muted); box-shadow: var(--shadow); transition: left 0.22s ease, color 0.15s; }
+  .side-toggle svg { transform: rotate(90deg); }
+  .side-toggle:hover { color: var(--honey-strong); }
+  .side-toggle.closed { left: 0; margin-left: 0; }
+  .side-toggle.closed svg { transform: rotate(-90deg); }
+}
