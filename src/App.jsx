@@ -84,6 +84,7 @@ function Main() {
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
   const [focusMode, setFocusMode] = useState(false)
+  const lastCard = useRef(null)
   const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
   const [drag, setDrag] = useState(null) // {id,title,x,y,over}
   const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
@@ -831,6 +832,18 @@ function Main() {
     }
   }
 
+  // double-click a note in the list: open it big (the list moves after the first click, so watch the whole window)
+  useEffect(() => {
+    const dbl = (e) => {
+      const l = lastCard.current
+      if (!l || window.innerWidth <= 720) return
+      lastCard.current = null
+      if (Date.now() - l.t < 450 && Math.hypot(e.clientX - l.x, e.clientY - l.y) < 10) setFocusMode(true)
+    }
+    window.addEventListener('click', dbl, true)
+    return () => window.removeEventListener('click', dbl, true)
+  }, [])
+
   // focus mode = the note fills the whole window (menu and list hidden)
   useEffect(() => {
     if (focusMode && !(activeId && view === 'notes')) setFocusMode(false)
@@ -1228,8 +1241,9 @@ function Main() {
               <button
                 className={`card ${n.id === activeId ? 'on' : ''} ${n.folder_id ? 'has-c' : ''}`}
                 style={n.folder_id ? { '--c': folderColor(folders.find((f) => f.id === n.folder_id)) } : undefined}
-                onClick={() => {
+                onClick={(e) => {
                   if (lp.current.fired) { lp.current.fired = false; return }
+                  lastCard.current = { t: Date.now(), x: e.clientX, y: e.clientY }
                   openNote(n.id)
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'note', item: n }) }}
