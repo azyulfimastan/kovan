@@ -704,7 +704,7 @@ kbd {
 /* ---------- rendered markdown ---------- */
 .prose {
   font-size: 16.5px;
-  line-height: 1.75;
+  line-height: 1.4;
   min-height: 240px;
   overflow-wrap: anywhere;
 }
@@ -1706,7 +1706,7 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.focus-mode .side, .shell.focus-mode .list, .shell.focus-mode .scrim { display: none; }
   .shell.focus-mode .ed-page { max-width: 920px; padding-top: 56px; }
   .shell.focus-mode .ed-title { font-size: 46px; }
-  .shell.focus-mode .rich { font-size: 19px; line-height: 1.75; }
+  .shell.focus-mode .rich { font-size: 19px; line-height: 1.45; }
 }
 
 .ws-more { flex: 0 0 auto; }
@@ -1730,3 +1730,5 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 /* empty paragraphs shouldn't leave a huge gap between two lines */
 .rich p:has(> br:only-child:last-child), .rich p:empty { line-height: 0.7; margin: 0; min-height: 0.7em; }
+.rich p { margin: 0.2em 0; }
+.rich li > p { margin: 0.1em 0; }
