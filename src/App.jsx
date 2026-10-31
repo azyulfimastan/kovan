@@ -83,6 +83,9 @@ function Main() {
   const [folderMenu, setFolderMenu] = useState(false)
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
+  const [selMode, setSelMode] = useState(false)
+  const [selIds, setSelIds] = useState([])
+  const [bulkMove, setBulkMove] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const lastCard = useRef(null)
   const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
@@ -782,6 +785,23 @@ function Main() {
     return () => { window.removeEventListener('touchstart', ts); window.removeEventListener('touchend', te) }
   }, [])
 
+  // multi-select -----------------------------------------------------------
+  const toggleSel = (id) => setSelIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
+  const exitSel = () => { setSelMode(false); setSelIds([]); setBulkMove(false) }
+  useEffect(() => { exitSel() }, [filter.kind, filter.id, view, wid])
+  function bulkDelete() {
+    const ids = selIds
+    if (!ids.length) return
+    if (activeId && ids.includes(activeId)) setActiveId(null)
+    ids.forEach((id) => edit(id, { deleted_at: new Date().toISOString() }, true))
+    flash('movedToTrash', { label: tRef.current('undo'), run: () => ids.forEach((id) => edit(id, { deleted_at: null }, true)) })
+    exitSel()
+  }
+  function bulkPick(fid) {
+    selIds.forEach((id) => edit(id, { folder_id: fid }, true))
+    exitSel()
+  }
+
   // long-press a card, then drag it onto a folder in the dock (phones)
   function startPress(e, n) {
     lp.current.fired = false
@@ -1212,6 +1232,9 @@ function Main() {
               ))}
             </div>
           )}
+          <button className={`sel-toggle ${selMode ? 'on' : ''}`} onClick={() => (selMode ? exitSel() : setSelMode(true))} title={t('select')}>
+            {selMode ? t('done') : t('select')}
+          </button>
           <button className="icon-btn top-plus" onClick={() => newNote()} title={t('newNote')}>
             <Icon name="plus" />
           </button>
@@ -1225,6 +1248,20 @@ function Main() {
             </button>
           )}
         </div>
+        {selMode && (
+          <div className="bulk-bar">
+            <button className="bulk-all" onClick={() => setSelIds(selIds.length === visible.length ? [] : visible.map((n) => n.id))}>
+              {selIds.length === visible.length && visible.length > 0 ? t('selectNone') : t('selectAll')}
+            </button>
+            <span className="muted bulk-n">{t('nSelected', { n: String(selIds.length) })}</span>
+            <button className="bulk-act" disabled={!selIds.length} onClick={() => setBulkMove(true)}>
+              <Icon name="folder" size={15} /> {t('moveFolder')}
+            </button>
+            <button className="bulk-act danger" disabled={!selIds.length} onClick={bulkDelete}>
+              <Icon name="trash" size={15} /> {t('delete')}
+            </button>
+          </div>
+        )}
         <ul className="cards">
           {visible.length === 0 && (
             <li className="empty-list">
@@ -1245,17 +1282,19 @@ function Main() {
           {visible.map((n) => (
             <li key={n.id}>
               <button
-                className={`card ${n.id === activeId ? 'on' : ''} ${n.folder_id ? 'has-c' : ''}`}
+                className={`card ${n.id === activeId && !selMode ? 'on' : ''} ${n.folder_id ? 'has-c' : ''} ${selMode ? 'sel-mode' : ''} ${selIds.includes(n.id) ? 'picked' : ''}`}
                 style={n.folder_id ? { '--c': folderColor(folders.find((f) => f.id === n.folder_id)) } : undefined}
                 onClick={(e) => {
                   if (lp.current.fired) { lp.current.fired = false; return }
+                  if (selMode || e.ctrlKey || e.metaKey) { setSelMode(true); toggleSel(n.id); return }
                   lastCard.current = { t: Date.now(), x: e.clientX, y: e.clientY }
                   openNote(n.id)
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, kind: 'note', item: n }) }}
-                onTouchStart={(e) => startPress(e, n)}
-                onMouseDown={(e) => e.button === 0 && startPress(e, n)}
+                onTouchStart={(e) => !selMode && startPress(e, n)}
+                onMouseDown={(e) => e.button === 0 && !selMode && !e.ctrlKey && !e.metaKey && startPress(e, n)}
               >
+                {selMode && <span className={`sel-box ${selIds.includes(n.id) ? 'on' : ''}`} aria-hidden="true" />}
                 <div className="card-top">
                   <strong>{n.title || t('untitled')}</strong>
                   {n.pinned && <Icon name="pin" size={13} className="pin-ico" />}
@@ -1446,6 +1485,27 @@ function Main() {
             </button>
           </div>
         </>
+      )}
+
+      {bulkMove && (
+        <div className="overlay" onMouseDown={() => setBulkMove(false)}>
+          <div className="dialog small move-sheet" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="dlg-head">
+              <h3>{t('moveFolder')}</h3>
+            </div>
+            <p className="muted move-title">{t('nSelected', { n: String(selIds.length) })}</p>
+            <div className="move-list">
+              <button onClick={() => bulkPick(null)}>
+                <Icon name="notes" size={16} /> {t('noFolder')}
+              </button>
+              {folders.map((f) => (
+                <button key={f.id} onClick={() => bulkPick(f.id)}>
+                  <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {moveId && (() => {
