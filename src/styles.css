@@ -1846,3 +1846,8 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 /* desktop: the format bar lives inside the editor pane and never covers the text */
 .kb-bar.desk { position: absolute; left: 50%; right: auto; bottom: 14px; transform: translateX(-50%); }
 .editor:has(.kb-bar.desk) .ed-page { padding-bottom: 150px; }
+
+.ed-images .img-dl { position: absolute; top: 6px; right: 36px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: inline-flex; align-items: center; justify-content: center; opacity: 0.85; }
+.ed-images .img-dl:hover { background: var(--honey-strong, #d9a63a); opacity: 1; }
+.lb-dl { position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 64px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.14); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.lb-dl:hover { background: rgba(255,255,255,.28); }

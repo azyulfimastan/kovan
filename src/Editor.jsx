@@ -67,6 +67,21 @@ function wikiLinks(getOpen) {
   })
 }
 
+async function downloadImage(url) {
+  try {
+    const blob = await (await fetch(url)).blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = (url.split('?')[0].split('/').pop() || 'image').replace(/[^\w.-]/g, '_')
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+  } catch {
+    window.open(url, '_blank', 'noopener')
+  }
+}
+
 const imageFiles = (list) => [...(list || [])].filter((f) => f.type.startsWith('image/'))
 
 function RichText({ note, live, placeholder, events, onEditor }) {
@@ -563,6 +578,9 @@ export default function Editor({
                   <button className="img-open" onClick={() => setLightbox(url)}>
                     <img src={url} alt="" loading="lazy" />
                   </button>
+                  <button className="img-dl" title={t('download')} onClick={() => downloadImage(url)}>
+                    <Icon name="download" size={14} />
+                  </button>
                   <button className="img-x" title={t('delete')} onClick={() => onImages(attached.filter((_, j) => j !== i))}>
                     ×
                   </button>
@@ -630,6 +648,9 @@ export default function Editor({
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="" />
+          <button className="lb-dl" title={t('download')} onClick={(e) => { e.stopPropagation(); downloadImage(lightbox) }}>
+            <Icon name="download" size={18} />
+          </button>
           <button className="lb-x" onClick={() => setLightbox(null)} title={t('close')}>
             ×
           </button>
