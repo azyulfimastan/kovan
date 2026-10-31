@@ -1695,3 +1695,14 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .ctx-menu button.danger { color: #e0556b; }
 
 .swarm-shield { position: fixed; inset: 0; z-index: 94; }
+
+/* focus mode: just the note, big and centered (desktop) */
+.only-wide { display: none; }
+@media (min-width: 721px) {
+  .only-wide { display: inline-flex; }
+  .shell.focus-mode { grid-template-columns: minmax(0, 1fr); }
+  .shell.focus-mode .side, .shell.focus-mode .list, .shell.focus-mode .scrim { display: none; }
+  .shell.focus-mode .ed-page { max-width: 920px; padding-top: 56px; }
+  .shell.focus-mode .ed-title { font-size: 46px; }
+  .shell.focus-mode .rich { font-size: 19px; line-height: 1.75; }
+}

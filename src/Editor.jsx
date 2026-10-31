@@ -195,6 +195,8 @@ export default function Editor({
   folders = [],
   onFolder,
   onBack,
+  focus = false,
+  onFocus,
 }) {
   const { t, lang } = useI18n()
   const titleRef = useRef(null)
@@ -429,6 +431,11 @@ export default function Editor({
         <button className={`icon-btn ${note.pinned ? 'active' : ''}`} onClick={onPin} title={note.pinned ? t('unpin') : t('pin')}>
           <Icon name="pin" />
         </button>
+        {onFocus && (
+          <button className={`icon-btn only-wide ${focus ? 'active' : ''}`} onClick={onFocus} title={t('focusMode')}>
+            <Icon name="expand" />
+          </button>
+        )}
         <div className="more-wrap">
           <button className={`icon-btn ${more ? 'active' : ''}`} onClick={() => setMore((v) => !v)} title={t('more')}>
             <Icon name="dots" />

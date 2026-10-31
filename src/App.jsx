@@ -83,6 +83,7 @@ function Main() {
   const [folderMenu, setFolderMenu] = useState(false)
   const [colorMenu, setColorMenu] = useState(false)
   const [moveId, setMoveId] = useState(null)
+  const [focusMode, setFocusMode] = useState(false)
   const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
   const [drag, setDrag] = useState(null) // {id,title,x,y,over}
   const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
@@ -834,6 +835,13 @@ function Main() {
     }
   }
 
+  useEffect(() => {
+    if (!focusMode) return
+    const k = (e) => e.key === 'Escape' && !document.querySelector('.sug, .overlay, .size-box') && setFocusMode(false)
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [focusMode])
+
   // render -------------------------------------------------------------------
   if (user === undefined) {
     return (
@@ -860,7 +868,7 @@ function Main() {
   const others = peers.filter((p) => p.id !== user.id)
 
   return (
-    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
+    <div className={`shell ${activeNote && view === 'notes' ? 'has-note' : ''} ${view === 'trash' || view === 'board' ? 'is-graph' : ''} ${sideOpen || sidePinned ? 'side-open' : ''} ${sidePinned ? 'side-pinned' : ''} ${pageColor ? 'has-fc' : ''} ${focusMode && activeNote && view === 'notes' ? 'focus-mode' : ''}`} style={pageColor ? { '--fc': pageColor } : undefined}>
       <div className="scrim" onClick={() => closeSide()} />
 
       {!sidePinned && drag && (
@@ -1316,6 +1324,8 @@ function Main() {
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
             onToggleBoard={() => toggleBoard(activeNote)}
             boardBack={boardFrom ? () => { flushAll(); setView('board'); setActiveId(null); setBoardFrom(false) } : null}
+            focus={focusMode}
+            onFocus={() => setFocusMode((v) => !v)}
             onBack={() => (flushAll(), boardFrom ? (setView('board'), setActiveId(null), setBoardFrom(false)) : setActiveId(null))}
           />
           </Suspense>

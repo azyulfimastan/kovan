@@ -20,6 +20,7 @@ export function snippet(body) {
   return (body || '')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/<\/?(p|u|br|span)(\s[^>]*)?\/?>/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/\\([\\*_`~#>\-.[\]])/g, '$1')
