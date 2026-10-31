@@ -162,6 +162,9 @@ export const cloudStore = {
       close: () => sb.removeChannel(ch),
     }
   },
+  async adminOverview() {
+    return ok(await sb.rpc('admin_overview'))
+  },
   async uploadImage(wid, file) {
     const path = `${wid}/${crypto.randomUUID()}.${file.type === 'image/gif' ? 'gif' : 'jpg'}`
     const { error } = await sb.storage.from('note-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
@@ -208,6 +211,9 @@ function save(d) {
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())
 
 export const localStore = {
+  async adminOverview() {
+    throw new Error('cloud only')
+  },
   async getUser() {
     return { id: 'local', email: '', name: '', avatar: '' }
   },
