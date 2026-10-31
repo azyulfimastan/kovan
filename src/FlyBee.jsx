@@ -108,7 +108,7 @@ export default function FlyBee() {
   if (!ok) return null
   return (
     <>
-      <div className="fly-bee main" ref={mainEl} onClick={() => burst()} role="button" aria-label="bee">
+      <div className="fly-bee lead" ref={mainEl} onClick={() => burst()} role="button" aria-label="bee">
         <Bee size={34} />
       </div>
       {count > 0 && <div className="swarm-shield" />}
