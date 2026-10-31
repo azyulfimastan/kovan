@@ -46,7 +46,10 @@ export const FontSize = Mark.create({
           decorations(state) {
             const decos = []
             state.doc.descendants((node, pos) => {
-              if (node.type.name !== 'paragraph' || !node.childCount) return
+              if (node.type.name !== 'paragraph') return
+              // a paragraph with no text at all is a blank line: squeeze it (text + a line break is NOT blank)
+              if (!node.textContent.trim()) decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'p-empty' }))
+              if (!node.childCount) return
               let size = 0
               let ok = true
               node.forEach((c) => {
