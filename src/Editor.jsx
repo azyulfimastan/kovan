@@ -122,6 +122,9 @@ function RichText({ note, live, placeholder, events, onEditor }) {
       ev.current.selection(ed)
     },
     onSelectionUpdate: ({ editor: ed }) => ev.current.selection(ed),
+    onTransaction: ({ editor: ed, transaction }) => {
+      if (transaction.storedMarksSet) ev.current.selection(ed)
+    },
     onFocus: () => ev.current.focus(true),
     onBlur: () => ev.current.focus(false),
   })
@@ -136,7 +139,11 @@ const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60,
 
 function sizeOps(editor) {
   const base = Math.round(parseFloat(getComputedStyle(editor.view.dom).fontSize) || 16)
-  const attr = editor.getAttributes('fontSize').size
+  const st = editor.state
+  const sel = st.selection
+  // with a bare cursor the size you just picked lives in the stored marks
+  const here = sel.empty ? (st.storedMarks || sel.$from.marks()).find((m) => m.type.name === 'fontSize') : null
+  const attr = here ? here.attrs.size : editor.getAttributes('fontSize').size
   const cur = Math.round(attr || base)
   const apply = (v) => {
     const n = Math.max(6, Math.min(160, Math.round(Number(v))))

@@ -24,6 +24,23 @@ export const FontSize = Mark.create({
   // a paragraph whose text is all sized gets its biggest size itself, so its line height shrinks/grows with it
   addProseMirrorPlugins() {
     return [
+      // pressing Enter keeps typing at the size you were using
+      new Plugin({
+        appendTransaction(trs, oldState, newState) {
+          if (!trs.some((t) => t.docChanged)) return null
+          const sel = newState.selection
+          if (!sel.empty || newState.storedMarks) return null
+          const $f = sel.$from
+          if ($f.parent.type.name !== 'paragraph' || $f.parent.content.size !== 0 || $f.depth < 1) return null
+          if (oldState.selection.$from.parent.content.size === 0) return null
+          const container = $f.node($f.depth - 1)
+          const idx = $f.index($f.depth - 1)
+          const prev = idx > 0 ? container.child(idx - 1) : null
+          const last = prev && prev.type.name === 'paragraph' ? prev.lastChild : null
+          const m = last && last.isText ? last.marks.find((x) => x.type.name === 'fontSize') : null
+          return m ? newState.tr.setStoredMarks([m]) : null
+        },
+      }),
       new Plugin({
         props: {
           decorations(state) {
