@@ -1301,6 +1301,10 @@ function Main() {
                   <span className="card-date">{when(n.updated_at, lang)}</span>
                 </div>
                 {snippet(n.body) && <p>{snippet(n.body)}</p>}
+                {n.folder_id && filter.kind !== 'folder' && (() => {
+                  const f = folders.find((x) => x.id === n.folder_id)
+                  return f ? <span className="card-folder"><i style={{ background: folderColor(f) }} />{f.name}</span> : null
+                })()}
               </button>
             </li>
           ))}
