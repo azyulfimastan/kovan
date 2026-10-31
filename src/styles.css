@@ -1772,12 +1772,6 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.hover-nav .edge-arrow svg { transform: rotate(-90deg); }
   .shell.hover-nav .edge-arrow:hover { color: var(--honey-strong); width: 28px; }
 }
-/* pinned menu: the notes list sits in the middle when no note is open */
-@media (min-width: 721px) {
-  .shell.side-pinned:not(.has-note):not(.is-graph) { grid-template-columns: 256px minmax(0, 1fr); }
-  .shell.side-pinned:not(.has-note):not(.is-graph) .main { display: none; }
-  .shell.side-pinned:not(.has-note):not(.is-graph) .list { width: min(760px, 100%); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
-}
 
 /* unpinned desktop: the menu stays until you close it yourself */
 .side-close { display: none; margin-left: auto; }
