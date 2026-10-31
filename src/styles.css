@@ -1854,3 +1854,12 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 .sort-toggle { flex: none; width: 34px; height: 34px; border-radius: 999px; background: var(--panel2); color: var(--ink); font: 700 17px var(--sans); display: inline-flex; align-items: center; justify-content: center; }
 .sort-toggle:hover { background: var(--honey-soft); color: var(--honey-strong); }
+
+/* long folder names: shrink the title (ellipsis) instead of pushing the buttons out of the header */
+.list-title { overflow: hidden; }
+.title-btn { min-width: 0; flex: 0 1 auto; }
+.title-btn h2 { min-width: 0; }
+.title-btn svg, .list-title .muted, .list-title .color-btn { flex: none; }
+.list-head > .sort-toggle, .list-head > .sel-toggle, .list-head > .top-plus, .list-head > .peers { flex: none; }
+.list-title .color-btn { font-size: 0; gap: 0; padding: 7px 9px; }
+.list-title .color-btn .f-dot { width: 14px; height: 14px; }

@@ -1190,7 +1190,7 @@ function Main() {
             <span className="muted">{visible.length}</span>
             {filter.kind === 'folder' && folders.find((f) => f.id === filter.id) && (
               <>
-                <button className="color-btn" onClick={() => setColorMenu((v) => !v)}>
+                <button className="color-btn" title={t('pickColor')} onClick={() => setColorMenu((v) => !v)}>
                   <span className="f-dot" style={{ background: folderColor(folders.find((f) => f.id === filter.id)) }} /> {t('pickColor')}
                 </button>
                 {colorMenu && (
