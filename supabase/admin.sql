@@ -20,3 +20,21 @@ begin
 end $$;
 revoke all on function public.admin_overview() from public, anon;
 grant execute on function public.admin_overview() to authenticated;
+
+-- Rooms overview (same owner-only check)
+create or replace function public.admin_rooms()
+returns table (ws_id uuid, name text, owner_email text, members bigint, notes bigint, bytes bigint)
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if coalesce(auth.jwt() ->> 'email', '') <> 'mastan96pl@gmail.com' then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  return query
+  select w.id, w.name::text, (select u.email::text from auth.users u where u.id = w.owner_id),
+    (select count(*) from public.members m where m.workspace_id = w.id)::bigint,
+    (select count(*) from public.notes n where n.workspace_id = w.id and n.deleted_at is null)::bigint,
+    (select coalesce(sum(octet_length(n.title) + octet_length(n.body)), 0)::bigint from public.notes n where n.workspace_id = w.id)
+  from public.workspaces w order by 5 desc;
+end $$;
+revoke all on function public.admin_rooms() from public, anon;
+grant execute on function public.admin_rooms() to authenticated;

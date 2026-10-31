@@ -165,6 +165,9 @@ export const cloudStore = {
   async adminOverview() {
     return ok(await sb.rpc('admin_overview'))
   },
+  async adminRooms() {
+    return ok(await sb.rpc('admin_rooms'))
+  },
   async uploadImage(wid, file) {
     const path = `${wid}/${crypto.randomUUID()}.${file.type === 'image/gif' ? 'gif' : 'jpg'}`
     const { error } = await sb.storage.from('note-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
@@ -213,6 +216,9 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) 
 export const localStore = {
   async adminOverview() {
     throw new Error('cloud only')
+  },
+  async adminRooms() {
+    return []
   },
   async getUser() {
     return { id: 'local', email: '', name: '', avatar: '' }
