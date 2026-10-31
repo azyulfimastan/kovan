@@ -12,8 +12,8 @@ begin
   return query
   select u.id, u.email::text, u.created_at, u.last_sign_in_at,
     (select count(*) from public.notes n where n.created_by = u.id and n.deleted_at is null),
-    (select coalesce(sum(octet_length(n.title) + octet_length(n.body)), 0) from public.notes n where n.created_by = u.id),
-    (select coalesce(sum((o.metadata ->> 'size')::bigint), 0) from storage.objects o
+    (select coalesce(sum(octet_length(n.title) + octet_length(n.body)), 0)::bigint from public.notes n where n.created_by = u.id),
+    (select coalesce(sum((o.metadata ->> 'size')::bigint), 0)::bigint from storage.objects o
        where o.bucket_id = 'note-images' and coalesce(to_jsonb(o) ->> 'owner_id', to_jsonb(o) ->> 'owner') = u.id::text)
   from auth.users u
   order by u.created_at desc;
