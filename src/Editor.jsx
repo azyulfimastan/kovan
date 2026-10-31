@@ -97,6 +97,13 @@ function RichText({ note, live, placeholder, events, onEditor }) {
         ev.current.images(fs)
         return true
       },
+      handleClick: (_v, _p, e) => {
+        const a = e.target?.closest?.('a[href]')
+        if (!a || e.button !== 0) return false
+        e.preventDefault()
+        window.open(a.href, '_blank', 'noopener,noreferrer')
+        return true
+      },
       handleClickOn: (_v, _p, node) => {
         if (node.type.name !== 'image') return false
         ev.current.zoom(node.attrs.src)

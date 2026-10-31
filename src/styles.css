@@ -1799,3 +1799,5 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
   .shell.focus-mode .ed-page { max-width: min(1180px, 94vw); padding: 28px 40px 90px; }
   .shell.focus-mode .ed-title { font-size: 40px; }
 }
+
+.rich a { cursor: pointer; }
