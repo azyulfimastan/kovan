@@ -69,8 +69,8 @@ export default function App() {
 function when(iso, lang) {
   if (!iso) return ''
   const d = new Date(iso)
-  if (d.toDateString() === new Date().toDateString()) return d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString(lang, { day: 'numeric', month: 'short' })
+  const day = d.toLocaleDateString(lang, d.getFullYear() === new Date().getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${day} ${d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })}`
 }
 
 function Main() {
