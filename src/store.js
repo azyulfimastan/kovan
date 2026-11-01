@@ -165,6 +165,9 @@ export const cloudStore = {
   async adminOverview() {
     return ok(await sb.rpc('admin_overview'))
   },
+  async myUsage() {
+    return Number(ok(await sb.rpc('my_usage')))
+  },
   async adminRooms() {
     return ok(await sb.rpc('admin_rooms'))
   },
@@ -235,6 +238,9 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) 
 export const localStore = {
   async adminOverview() {
     throw new Error('cloud only')
+  },
+  async myUsage() {
+    return 0
   },
   async adminRooms() {
     return []

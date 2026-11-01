@@ -31,6 +31,8 @@ const lsDel = (k) => {
 }
 
 const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c', '#e0b020', '#5b6ee1', '#2f9e8f', '#8d6e63']
+const QUOTA = 300 * 1024 * 1024
+const fmtBytes = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 const folderColor = (f) => {
   if (!f) return null
   if (f.color && FOLDER_COLORS.includes(f.color)) return f.color
@@ -88,6 +90,8 @@ function Main() {
   const [selMode, setSelMode] = useState(false)
   const [selIds, setSelIds] = useState([])
   const [bulkMove, setBulkMove] = useState(false)
+  const [usage, setUsage] = useState(null) // bytes used by this account
+  const refreshUsage = useCallback(() => { if (cloud) store.myUsage().then(setUsage).catch(() => {}) }, [])
   const [delAcc, setDelAcc] = useState(null) // null | { text: '', busy: false, err: '' }
   const [focusMode, setFocusMode] = useState(false)
   const lastCard = useRef(null)
@@ -329,6 +333,7 @@ function Main() {
     }
     bootstrap()
   }, [user?.id, bootstrap])
+  useEffect(() => { if (user?.id) refreshUsage() }, [user?.id, refreshUsage])
 
   // notes for the active workspace ---------------------------------------------
   useEffect(() => {
@@ -532,13 +537,14 @@ function Main() {
       const body = init.body || ''
       const folder_id = init.folder_id || (filter.kind === 'folder' ? filter.id : null)
       const n = await store.createNote(wid, { title: init.title || '', body, folder_id })
+      refreshUsage()
       setNotes((ns) => [n, ...ns.filter((x) => x.id !== n.id)])
       setActiveId(n.id)
       setView('notes')
       setModeState('edit')
       closeSide()
-    } catch {
-      flash('error')
+    } catch (e) {
+      flash(/row-level security|violates/i.test(e?.message || '') ? 'quotaFull' : 'error')
     }
   }
 
@@ -660,9 +666,11 @@ function Main() {
   async function uploadImage(file) {
     try {
       const blob = await shrinkImage(file, cloud ? 1600 : 900, cloud ? 0.85 : 0.7)
-      return await store.uploadImage(wid, blob)
-    } catch {
-      flash('imageFail')
+      const url = await store.uploadImage(wid, blob)
+      refreshUsage()
+      return url
+    } catch (e) {
+      flash(/row-level security|violates|exceeded|policy/i.test(e?.message || '') ? 'quotaFull' : 'imageFail')
       return null
     }
   }
@@ -1164,6 +1172,12 @@ function Main() {
               <button className="icon-btn danger-ico" onClick={() => setDelAcc({ text: '', busy: false, err: '' })} title={t('deleteAccount')}>
                 <Icon name="trash" size={16} />
               </button>
+            </div>
+          )}
+          {cloud && usage != null && (
+            <div className="usage" title={t('storageUsed')}>
+              <div className="usage-bar"><i style={{ width: Math.min(100, (usage / QUOTA) * 100) + '%' }} className={usage / QUOTA > 0.9 ? 'hot' : ''} /></div>
+              <span>{fmtBytes(usage)} / {fmtBytes(QUOTA)}</span>
             </div>
           )}
           <div className="foot-row">

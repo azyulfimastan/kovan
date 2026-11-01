@@ -1865,3 +1865,9 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 
 .icon-btn.danger-ico:hover { color: var(--danger, #ff7b7b); background: rgba(255, 90, 90, 0.12); }
 .me .icon-btn { flex: none; }
+
+.usage { display: flex; align-items: center; gap: 8px; margin: 2px 4px 8px; font-size: 11.5px; color: var(--muted); }
+.usage-bar { flex: 1; height: 6px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
+.usage-bar i { display: block; height: 100%; border-radius: 99px; background: var(--honey, #e6c36a); transition: width .3s; }
+.usage-bar i.hot { background: #ff6b6b; }
+.usage span { flex: none; }
