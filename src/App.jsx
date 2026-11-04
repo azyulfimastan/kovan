@@ -33,6 +33,9 @@ const lsDel = (k) => {
 const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c', '#e0b020', '#5b6ee1', '#2f9e8f', '#8d6e63']
 const QUOTA = 300 * 1024 * 1024
 const fmtBytes = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
+// photos a note uses: attached ones and any pasted into the text
+const IMG_RE = /https?:\/\/[^\s)"'<>]+\/note-images\/[^\s)"'<>]+/g
+const imagesOf = (n) => [...new Set([...(n?.images || []), ...((n?.body || '').match(IMG_RE) || [])])]
 const folderColor = (f) => {
   if (!f) return null
   if (f.color && FOLDER_COLORS.includes(f.color)) return f.color
@@ -92,6 +95,15 @@ function Main() {
   const [bulkMove, setBulkMove] = useState(false)
   const [usage, setUsage] = useState(null) // bytes used by this account
   const refreshUsage = useCallback(() => { if (cloud) store.myUsage().then(setUsage).catch(() => {}) }, [])
+  // remove photos from storage once no other note uses them (keeps the quota honest)
+  const freeImages = useCallback((urls, goneIds = [], changed = null) => {
+    if (!cloud || !urls.length) return
+    const gone = new Set(goneIds)
+    const now = notesRef.current.map((n) => (changed && n.id === changed.id ? { ...n, ...changed } : n))
+    const used = new Set(now.filter((n) => !gone.has(n.id)).flatMap(imagesOf))
+    const drop = urls.filter((u) => !used.has(u))
+    if (drop.length) store.removeImages(drop).then(refreshUsage).catch(() => {})
+  }, [refreshUsage])
   const [delAcc, setDelAcc] = useState(null) // null | { text: '', busy: false, err: '' }
   const [focusMode, setFocusMode] = useState(false)
   const lastCard = useRef(null)
@@ -389,8 +401,13 @@ function Main() {
           } catch {}
         }
         if (!alive) return
-        store.purgeTrash?.(wid)?.catch?.(() => {})
-        setNotes(list.filter((n) => !(n.deleted_at && Date.now() - new Date(n.deleted_at).getTime() > 30 * 864e5)))
+        const expired = (n) => n.deleted_at && Date.now() - new Date(n.deleted_at).getTime() > 30 * 864e5
+        const old = list.filter(expired)
+        if (old.length) {
+          notesRef.current = list
+          store.purgeTrash?.(wid)?.then?.(() => freeImages(old.flatMap(imagesOf), old.map((n) => n.id)))?.catch?.(() => {})
+        }
+        setNotes(list.filter((n) => !expired(n)))
         lsSet('kovan.ws', wid)
       })
       .catch(() => alive && flash('error'))
@@ -633,18 +650,26 @@ function Main() {
     edit(id, { deleted_at: null }, true)
   }
 
-  async function purgeNote(id) {
-    try {
-      await store.deleteNote(id)
-      setNotes((ns) => ns.filter((n) => n.id !== id))
-    } catch {
-      flash('error')
+  async function purgeMany(ids) {
+    const gone = notesRef.current.filter((n) => ids.includes(n.id))
+    const done = []
+    for (const id of ids) {
+      try {
+        await store.deleteNote(id)
+        done.push(id)
+      } catch {
+        flash('error')
+        break
+      }
     }
+    setNotes((ns) => ns.filter((n) => !done.includes(n.id)))
+    freeImages(gone.filter((n) => done.includes(n.id)).flatMap(imagesOf), done)
   }
+  const purgeNote = (id) => purgeMany([id])
 
   async function emptyTrash() {
     if (!window.confirm(t('emptyTrashConfirm'))) return
-    for (const n of trash) await purgeNote(n.id)
+    await purgeMany(trash.map((n) => n.id))
   }
 
   async function createWorkspace(e) {
@@ -1422,7 +1447,12 @@ function Main() {
             onOpenNote={openNote}
             typing={typing}
             onUpload={uploadImage}
-            onImages={(arr) => edit(activeNote.id, { images: arr }, true)}
+            onImages={(arr) => {
+              const removed = (activeNote.images || []).filter((u) => !arr.includes(u))
+              edit(activeNote.id, { images: arr }, true)
+              // the note no longer uses them; delete unless another note still does
+              if (removed.length) freeImages(removed, [], { id: activeNote.id, images: arr })
+            }}
             folders={folders}
             onFolder={(id) => edit(activeNote.id, { folder_id: id || null }, true)}
             onToggleBoard={() => toggleBoard(activeNote)}

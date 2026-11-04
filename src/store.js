@@ -190,6 +190,11 @@ export const cloudStore = {
     ok(await sb.rpc('delete_my_account'))
     await sb.auth.signOut()
   },
+  // delete uploaded photos (only paths inside our bucket; others are ignored)
+  async removeImages(urls) {
+    const paths = urls.map((u) => /\/note-images\/(.+)$/.exec(String(u).split('?')[0])?.[1]).filter(Boolean).map(decodeURIComponent)
+    if (paths.length) ok(await sb.storage.from('note-images').remove(paths))
+  },
   async uploadImage(wid, file) {
     const path = `${wid}/${crypto.randomUUID()}.${file.type === 'image/gif' ? 'gif' : 'jpg'}`
     const { error } = await sb.storage.from('note-images').upload(path, file, { contentType: file.type, cacheControl: '31536000' })
@@ -387,6 +392,7 @@ export const localStore = {
       close: () => bc.close(),
     }
   },
+  async removeImages() {},
   async uploadImage(wid, file) {
     return new Promise((res, rej) => {
       const r = new FileReader()
