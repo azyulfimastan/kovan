@@ -1,10 +1,20 @@
 import { useState } from 'react'
+
+// Google/Supabase send sign-in problems back in the address (e.g. a banned account)
+function readAuthError() {
+  const q = new URLSearchParams(window.location.search + '&' + window.location.hash.replace(/^#/, ''))
+  const code = q.get('error_code') || q.get('error')
+  if (!code) return null
+  window.history.replaceState({}, '', window.location.pathname)
+  return /banned/i.test(code + ' ' + (q.get('error_description') || '')) ? 'banned' : /saving new user|database/i.test(q.get('error_description') || '') ? 'banned' : 'failed'
+}
 import { Bee, HexLogo, HoneyDrip } from './icons'
 import { LANGS, useI18n } from './i18n'
 import { store } from './store'
 
 export default function Login() {
   const { t, lang, setLang } = useI18n()
+  const [authErr] = useState(readAuthError)
   const [err, setErr] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -46,6 +56,7 @@ export default function Login() {
           {t('signInGoogle')}
         </button>
         {err && <p className="err">{t('loginError')}</p>}
+        {!err && authErr && <p className="err">{authErr === 'banned' ? t('loginBlocked') : t('loginError')}</p>}
         <div className="legal-row">
           <a href="/privacy">{t('privacyLink')}</a>
           <span>·</span>
