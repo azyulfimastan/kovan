@@ -821,6 +821,25 @@ function Main() {
     return () => { window.removeEventListener('touchstart', ts); window.removeEventListener('touchend', te) }
   }, [])
 
+  // phone/browser Back closes the open note or the menu instead of leaving the app
+  const backState = useRef({})
+  backState.current = { side: sideOpen && !wide, note: !!(activeId && view === 'notes') }
+  useEffect(() => {
+    const open = (activeId && view === 'notes') || (sideOpen && !wide)
+    const marked = window.history.state?.kovan
+    if (open && !marked) window.history.pushState({ kovan: 1 }, '')
+    else if (!open && marked) window.history.back()
+  }, [activeId, view, sideOpen, wide])
+  useEffect(() => {
+    const onPop = () => {
+      const b = backState.current
+      if (b.side) setSideOpen(false)
+      else if (b.note) gest.current.back()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
   // multi-select -----------------------------------------------------------
   const toggleSel = (id) => setSelIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
   const exitSel = () => { setSelMode(false); setSelIds([]); setBulkMove(false) }
