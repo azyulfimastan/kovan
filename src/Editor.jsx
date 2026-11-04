@@ -517,6 +517,16 @@ export default function Editor({
                 >
                   <Icon name="board" size={16} /> {note.column_id ? t('removeFromBoard') : t('addToBoard')}
                 </button>
+                {onPin && (
+                  <button
+                    onClick={() => {
+                      setMore(false)
+                      onPin()
+                    }}
+                  >
+                    <Icon name="pin" size={16} /> {note.pinned ? t('unpin') : t('pin')}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setMore(false)

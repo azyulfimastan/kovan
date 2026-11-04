@@ -753,6 +753,55 @@ function Main() {
     store.updateFolder(f.id, { color: next }).catch(() => flash('error'))
   }
 
+  // the whole room as a ZIP: one .md file per note in folder subfolders, photos next to them
+  async function exportRoom() {
+    flash('exporting')
+    try {
+      const { makeZip, safeName } = await import('./lib/zip')
+      const files = []
+      const names = new Set()
+      const uniq = (path) => {
+        let p = path
+        for (let i = 2; names.has(p.toLowerCase()); i++) p = path.replace(/(\.\w+)$/, ` (${i})$1`)
+        names.add(p.toLowerCase())
+        return p
+      }
+      const imgPath = new Map()
+      for (const url of [...new Set(notes.flatMap((n) => [...(n.images || []), ...((n.body || '').match(IMG_RE) || [])]))]) {
+        try {
+          let data
+          if (url.startsWith('data:')) data = Uint8Array.from(atob(url.split(',')[1] || ''), (c) => c.charCodeAt(0))
+          else data = new Uint8Array(await (await fetch(url)).arrayBuffer())
+          const ext = /\.(png|gif|webp|jpe?g)(\?|$)/i.exec(url)?.[1] || (url.startsWith('data:image/png') ? 'png' : 'jpg')
+          const p = uniq(`images/${String(imgPath.size + 1).padStart(3, '0')}.${ext}`)
+          imgPath.set(url, p)
+          files.push({ name: p, data })
+        } catch {}
+      }
+      for (const n of notes) {
+        const folder = folders.find((f) => f.id === n.folder_id)
+        const dir = folder ? safeName(folder.name, 'folder') + '/' : ''
+        const up = dir ? '../' : ''
+        let body = n.body || ''
+        for (const [u, p] of imgPath) body = body.split(u).join(up + p)
+        const extra = (n.images || []).filter((u) => imgPath.has(u)).map((u) => `![](${up}${imgPath.get(u)})`).join('\n\n')
+        const text = (n.title ? `# ${n.title}\n\n` : '') + body + (extra ? `\n\n${extra}\n` : '\n')
+        files.push({ name: uniq(dir + safeName(n.title, t('untitled')) + '.md'), data: text, date: new Date(n.updated_at || Date.now()) })
+      }
+      const blob = makeZip(files)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `Kovan - ${safeName(ws?.name, 'notes')} - ${new Date().toISOString().slice(0, 10)}.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+      flash('exported')
+    } catch {
+      flash('error')
+    }
+  }
+
   async function removeRoom(w) {
     const owner = w.owner_id === user.id
     if (!window.confirm(t(owner ? 'deleteWsConfirm' : 'leaveConfirm'))) return
@@ -1065,7 +1114,7 @@ function Main() {
           </div>
           <div className="room-name">
             <strong>{ws?.name || ''}</strong>
-            {cloud && ws && (
+            {ws && (
               <button className="icon-btn ws-more" title={t('more')} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCtx({ x: r.left, y: r.bottom + 4, kind: 'ws', item: ws }) }}>
                 <Icon name="dots" size={16} />
               </button>
@@ -1550,15 +1599,27 @@ function Main() {
       {ctx && (
         <>
           <div className="menu-scrim" style={{ zIndex: 119 }} onMouseDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }} />
-          <div className="ctx-menu" style={{ left: Math.min(ctx.x, window.innerWidth - 190), top: Math.min(ctx.y, window.innerHeight - 110) }}>
+          <div className="ctx-menu" style={{ left: Math.min(ctx.x, window.innerWidth - 190), top: Math.min(ctx.y, window.innerHeight - 160) }}>
             {ctx.kind === 'note' && (
-              <button onClick={() => { setMoveId(ctx.item.id); setCtx(null) }}>
-                <Icon name="folder" size={15} /> {t('moveFolder')}
+              <>
+                <button onClick={() => { setMoveId(ctx.item.id); setCtx(null) }}>
+                  <Icon name="folder" size={15} /> {t('moveFolder')}
+                </button>
+                <button onClick={() => { edit(ctx.item.id, { pinned: !ctx.item.pinned }, true); setCtx(null) }}>
+                  <Icon name="pin" size={15} /> {ctx.item.pinned ? t('unpin') : t('pin')}
+                </button>
+              </>
+            )}
+            {ctx.kind === 'ws' && (
+              <button onClick={() => { setCtx(null); exportRoom() }}>
+                <Icon name="download" size={15} /> {t('exportAll')}
               </button>
             )}
-            <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : c.kind === 'ws' ? removeRoom(c.item) : removeFolder(c.item) }}>
-              <Icon name="trash" size={15} /> {ctx.kind === 'ws' ? (ctx.item.owner_id === user.id ? t('deleteWs') : t('leave')) : t('delete')}
-            </button>
+            {!(ctx.kind === 'ws' && !cloud) && (
+              <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : c.kind === 'ws' ? removeRoom(c.item) : removeFolder(c.item) }}>
+                <Icon name="trash" size={15} /> {ctx.kind === 'ws' ? (ctx.item.owner_id === user.id ? t('deleteWs') : t('leave')) : t('delete')}
+              </button>
+            )}
           </div>
         </>
       )}
