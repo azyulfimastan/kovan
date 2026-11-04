@@ -8,7 +8,16 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const cloud = Boolean(url && key)
 
 const sb = cloud
-  ? createClient(url, key, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } })
+  ? createClient(url, key, {
+      auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' },
+      // a save started while the page is being closed or hidden still reaches the server
+      global: {
+        fetch: (input, init = {}) => {
+          const small = typeof init.body !== 'string' || init.body.length < 60000
+          return fetch(input, document.visibilityState === 'hidden' && small ? { ...init, keepalive: true } : init)
+        },
+      },
+    })
   : null
 
 const WS_COLS = 'id,name,invite_code,short_code,owner_id'

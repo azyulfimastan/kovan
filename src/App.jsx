@@ -188,6 +188,26 @@ function Main() {
   const activeIdRef = useRef(null)
 
   const pending = useRef({})
+  const pendingAt = useRef({}) // when each unsaved change was made
+  // unsaved changes also live in this browser, so closing the tab while offline loses nothing
+  const persistT = useRef(null)
+  const persistPending = (now = false) => {
+    if (!cloud) return
+    clearTimeout(persistT.current)
+    if (!now) {
+      persistT.current = setTimeout(() => persistPending(true), 400)
+      return
+    }
+    const items = {}
+    for (const id of new Set([...Object.keys(pending.current), ...Object.keys(pendingAt.current)])) {
+      if (pending.current[id] || pendingAt.current[id]) items[id] = { patch: pending.current[id] || {}, at: pendingAt.current[id] || Date.now() }
+    }
+    const old = (() => { try { return JSON.parse(lsGet('kovan.pending') || '{}') } catch { return {} } })()
+    // keep saved-for-later changes of notes in other rooms (not loaded right now)
+    for (const [id, v] of Object.entries(old)) if (!(id in items) && !notesRef.current.some((n) => n.id === id) && Date.now() - v.at < 14 * 864e5) items[id] = v
+    if (Object.keys(items).length) lsSet('kovan.pending', JSON.stringify(items))
+    else lsDel('kovan.pending')
+  }
   const timers = useRef({})
   const dirty = useRef(new Set())
   const welcome = useRef(null)
@@ -258,12 +278,18 @@ function Main() {
       timers.current[id] = setTimeout(() => flushRef.current?.(id), navigator.onLine === false ? 15000 : 5000)
       return
     }
-    if (!pending.current[id]) dirty.current.delete(id)
+    if (!pending.current[id]) {
+      dirty.current.delete(id)
+      delete pendingAt.current[id]
+      persistPending()
+    }
     if (dirty.current.size === 0) setSaveState('saved')
   }, [flash])
 
   const flushRef = useRef(null)
   flushRef.current = flush
+  const persistRef = useRef(null)
+  persistRef.current = persistPending
   useEffect(() => {
     const on = () => Object.keys(pending.current).forEach((id) => flushRef.current(id))
     const off = () => setSaveState('offline')
@@ -281,7 +307,10 @@ function Main() {
 
   useEffect(() => {
     const onHide = () => {
-      if (document.visibilityState === 'hidden') flushAll()
+      if (document.visibilityState === 'hidden') {
+        persistRef.current(true)
+        flushAll()
+      }
     }
     window.addEventListener('pagehide', flushAll)
     document.addEventListener('visibilitychange', onHide)
@@ -295,6 +324,8 @@ function Main() {
     setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)))
     if (liveRef.current?.id === id) liveRef.current.set(patch)
     pending.current[id] = { ...(pending.current[id] || {}), ...patch }
+    pendingAt.current[id] = Date.now()
+    persistPending()
     dirty.current.add(id)
     setSaveState((s) => (s === 'offline' && navigator.onLine === false ? 'offline' : 'saving'))
     clearTimeout(timers.current[id])
@@ -409,6 +440,16 @@ function Main() {
         }
         setNotes(list.filter((n) => !expired(n)))
         lsSet('kovan.ws', wid)
+        // changes that never reached the server last time (tab closed while offline): send them now,
+        // unless the note was changed on the server after them
+        try {
+          const saved = JSON.parse(lsGet('kovan.pending') || '{}')
+          notesRef.current = list
+          for (const [id, v] of Object.entries(saved)) {
+            const n = list.find((x) => x.id === id)
+            if (n && v.patch && Object.keys(v.patch).length && new Date(n.updated_at).getTime() <= v.at) edit(id, v.patch)
+          }
+        } catch {}
       })
       .catch(() => alive && flash('error'))
 
