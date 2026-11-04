@@ -598,14 +598,19 @@ kbd {
   padding: 36px 28px 90px;
 }
 .ed-title {
+  display: block;
   width: 100%;
   border: 0;
   outline: none;
   background: none;
+  color: inherit;
   font: 700 38px/1.15 var(--serif);
   letter-spacing: -0.015em;
   padding: 0;
   margin-bottom: 14px;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .ed-title::placeholder,
 .ed-body::placeholder {

@@ -1,5 +1,5 @@
 import { pasteYouTube } from './lib/ytitle'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
@@ -302,6 +302,19 @@ export default function Editor({
     if (!note.title && !note.body && titleRef.current) titleRef.current.focus()
   }, [note.id])
 
+  // long titles wrap onto more lines instead of being cut off
+  useLayoutEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    const fit = () => {
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [note.title, focus])
+
   useEffect(() => {
     const mq = window.matchMedia?.('(pointer: coarse), (max-width: 720px)')
     const f = () => setTouch(!!mq?.matches)
@@ -552,14 +565,15 @@ export default function Editor({
 
       <div className="ed-scroll">
         <div className="ed-page">
-          <input
+          <textarea
             ref={titleRef}
             className="ed-title"
+            rows={1}
             value={note.title}
             placeholder={t('titlePlaceholder')}
-            onChange={(e) => onChange({ title: e.target.value })}
+            onChange={(e) => onChange({ title: e.target.value.replace(/[\r\n]+/g, ' ') })}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'ArrowDown') {
+              if (e.key === 'Enter' || (e.key === 'ArrowDown' && e.target.selectionStart === e.target.value.length)) {
                 e.preventDefault()
                 editor?.commands.focus('start')
               }
