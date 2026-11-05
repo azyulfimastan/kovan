@@ -174,6 +174,17 @@ function RichText({ note, live, placeholder, events, onEditor }) {
   return <EditorContent editor={editor} className="ed-rich" />
 }
 
+// move the cursor to the start of the text right away (TipTap's focus() waits a frame,
+// so the next keys would still land in the title)
+function focusStart(editor) {
+  try {
+    editor.view.focus()
+    editor.commands.setTextSelection(1)
+  } catch {
+    editor.commands.focus('start')
+  }
+}
+
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
 
 function sizeOps(editor) {
@@ -291,6 +302,13 @@ export default function Editor({
   const [kbBottom, setKbBottom] = useState(0)
   const [touch, setTouch] = useState(() => !!window.matchMedia?.('(pointer: coarse), (max-width: 720px)').matches)
   const dismissed = useRef(null)
+  const focusBody = useRef(false)
+  useEffect(() => {
+    if (editor && focusBody.current) {
+      focusBody.current = false
+      focusStart(editor)
+    }
+  }, [editor])
   const imagesRef = useRef(note.images || [])
   imagesRef.current = note.images || []
 
@@ -618,7 +636,9 @@ export default function Editor({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || (e.key === 'ArrowDown' && e.target.selectionStart === e.target.value.length)) {
                 e.preventDefault()
-                editor?.commands.focus('start')
+                // a brand-new shared note shows its text area a moment later; jump there as soon as it's ready
+                if (editor && !editor.isDestroyed) focusStart(editor)
+                else focusBody.current = true
               }
             }}
           />
