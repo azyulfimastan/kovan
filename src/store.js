@@ -178,6 +178,12 @@ export const cloudStore = {
   async myUsage() {
     return Number(ok(await sb.rpc('my_usage')))
   },
+  async listVersions(noteId) {
+    return ok(await sb.from('note_versions').select('id,title,body,saved_by,saved_at').eq('note_id', noteId).order('saved_at', { ascending: false }).limit(50))
+  },
+  async snapshotNote(noteId) {
+    ok(await sb.rpc('snapshot_note', { nid: noteId }))
+  },
   async adminRooms() {
     return ok(await sb.rpc('admin_rooms'))
   },
@@ -257,6 +263,10 @@ export const localStore = {
   async myUsage() {
     return 0
   },
+  async listVersions() {
+    return []
+  },
+  async snapshotNote() {},
   async adminRooms() {
     return []
   },

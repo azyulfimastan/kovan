@@ -12,7 +12,8 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import { Icon } from './icons'
 import { useI18n } from './i18n'
-import { norm } from './lib/md'
+import { norm, snippet } from './lib/md'
+import { store } from './store'
 import { baseExtensions, mdToHtml, docToMd } from './lib/rich'
 
 const SLASH = [
@@ -271,6 +272,7 @@ export default function Editor({
   onBack,
   focus = false,
   onFocus,
+  members = [],
 }) {
   const { t, lang } = useI18n()
   const titleRef = useRef(null)
@@ -282,6 +284,7 @@ export default function Editor({
   const [, setTick] = useState(0)
   const [more, setMore] = useState(false)
   const [lightbox, setLightbox] = useState(null)
+  const [hist, setHist] = useState(null) // note history dialog: { list: null | [], sel: version | null }
   const [uploading, setUploading] = useState(false)
   const [focused, setFocused] = useState(false)
   const [barHold, setBarHold] = useState(false)
@@ -438,6 +441,36 @@ export default function Editor({
     setTimeout(() => URL.revokeObjectURL(a.href), 2000)
   }
 
+  // note history ---------------------------------------------------------------
+  function openHistory() {
+    setHist({ list: null, sel: null })
+    store
+      .listVersions(note.id)
+      .then((list) => setHist((h) => h && { ...h, list }))
+      .catch(() => setHist((h) => h && { ...h, list: [] }))
+  }
+  const whenV = (iso) => new Date(iso).toLocaleString(lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const whoV = (id) => {
+    const m = members.find((x) => x.user_id === id)
+    return m ? m.name || m.email : ''
+  }
+  async function restoreVersion(v) {
+    // keep the current text as a version first, so going back can be undone
+    try {
+      await store.snapshotNote(note.id)
+    } catch {}
+    onChange({ title: v.title })
+    if (editor && !editor.isDestroyed) editor.commands.setContent(mdToHtml(v.body))
+    else onChange({ body: v.body })
+    setHist(null)
+  }
+  useEffect(() => {
+    if (!hist) return
+    const k = (e) => e.key === 'Escape' && setHist(null)
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [!!hist])
+
   const events = {
     local: (md) => onChange({ body: md }),
     remote: (md) => onBodyRemote?.(md),
@@ -530,6 +563,16 @@ export default function Editor({
                 >
                   <Icon name="board" size={16} /> {note.column_id ? t('removeFromBoard') : t('addToBoard')}
                 </button>
+                {cloud && (
+                  <button
+                    onClick={() => {
+                      setMore(false)
+                      openHistory()
+                    }}
+                  >
+                    <Icon name="clock" size={16} /> {t('history')}
+                  </button>
+                )}
                 {onPin && (
                   <button
                     onClick={() => {
@@ -665,6 +708,60 @@ export default function Editor({
                         </select>
                         <Icon name="chevron" size={13} />
                       </label>
+          </div>
+        </div>
+      )}
+
+      {hist && (
+        <div className="overlay" onMouseDown={() => setHist(null)}>
+          <div className="dialog hist-dlg" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="dlg-head">
+              <h3>{t('history')}</h3>
+              <button className="icon-btn" onClick={() => setHist(null)} title={t('close')}>
+                <Icon name="x" />
+              </button>
+            </div>
+            {hist.sel ? (
+              <>
+                <p className="muted hist-meta">
+                  {whenV(hist.sel.saved_at)}
+                  {whoV(hist.sel.saved_by) && ` · ${whoV(hist.sel.saved_by)}`}
+                </p>
+                <div className="hist-preview">
+                  {hist.sel.title && <h2>{hist.sel.title}</h2>}
+                  <div className="rich prose static" dangerouslySetInnerHTML={{ __html: mdToHtml(hist.sel.body) }} />
+                </div>
+                <div className="dlg-foot">
+                  <button className="btn" onClick={() => setHist((h) => ({ ...h, sel: null }))}>
+                    {t('back')}
+                  </button>
+                  <button className="btn primary" onClick={() => restoreVersion(hist.sel)}>
+                    {t('restoreVersion')}
+                  </button>
+                </div>
+              </>
+            ) : hist.list === null ? (
+              <p className="muted">…</p>
+            ) : hist.list.length === 0 ? (
+              <p className="muted">{t('historyEmpty')}</p>
+            ) : (
+              <>
+                <p className="muted hist-meta">{t('historyHint')}</p>
+                <ul className="hist-list">
+                  {hist.list.map((v) => (
+                    <li key={v.id}>
+                      <button onClick={() => setHist((h) => ({ ...h, sel: v }))}>
+                        <span className="hist-top">
+                          <strong>{whenV(v.saved_at)}</strong>
+                          <span className="muted">{whoV(v.saved_by)}</span>
+                        </span>
+                        <small className="muted">{(v.title ? v.title + ' — ' : '') + (snippet(v.body) || '…')}</small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </div>
       )}

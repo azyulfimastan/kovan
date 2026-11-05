@@ -1540,6 +1540,7 @@ function Main() {
           <Editor
             key={activeNote.id}
             note={activeNote}
+            members={members}
             notes={notes}
             backlinks={backlinks}
             saveState={saveState}
