@@ -1126,7 +1126,7 @@ function Main() {
           </span>
           <span className="logo-wrap">
             <span className="logo-text">Kovan</span>
-            <small className="credit">created by Ahmet Kula</small>
+            <small className="credit">{t('createdBy')}</small>
           </span>
         </div>
 

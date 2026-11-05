@@ -43,7 +43,7 @@ export default function Login() {
         </div>
         <h1 className="logo-text">Kovan</h1>
         <p className="tagline">{t('tagline')}</p>
-        <p className="credit login-credit">created by Ahmet Kula</p>
+        <p className="credit login-credit">{t('createdBy')}</p>
         <h2>{t('loginTitle')}</h2>
         <p className="muted">{t('loginSub')}</p>
         <button className="btn google" onClick={go} disabled={busy}>
