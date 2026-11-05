@@ -1891,3 +1891,5 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .splash { grid-template-rows: 1fr auto; }
 .splash .hive { align-self: center; }
 .splash-credit { margin: 0 0 calc(28px + env(safe-area-inset-bottom)); font-size: 16px; animation: none; }
+
+.side .credit { white-space: nowrap; font-size: 14px; }
