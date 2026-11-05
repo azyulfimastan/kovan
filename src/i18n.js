@@ -437,7 +437,7 @@ const D = {
     pin: 'Przypnij',
     unpin: 'Odepnij',
     exportAll: 'Pobierz wszystkie notatki (ZIP)',
-    createdBy: 'Opracowane przez Ahmeta Kulę',
+    createdBy: 'Opracowane przez Ahmet Kula',
     history: 'Historia',
     historyEmpty: 'Brak wcześniejszych wersji. Podczas edycji poprzednia treść jest zapisywana najwyżej co 10 minut.',
     historyHint: 'Wcześniejsze wersje tej notatki. Dotknij, aby zobaczyć.',
