@@ -1887,3 +1887,7 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .hist-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
 .hist-preview { overflow-y: auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); min-height: 120px; max-height: 50vh; }
 .hist-preview h2 { margin: 0 0 8px; font: 700 22px/1.2 var(--serif); }
+
+.splash { grid-template-rows: 1fr auto; }
+.splash .hive { align-self: center; }
+.splash-credit { margin: 0 0 calc(28px + env(safe-area-inset-bottom)); font-size: 16px; animation: none; }

@@ -1041,6 +1041,7 @@ function Main() {
             </span>
           </span>
         </div>
+        <p className="credit splash-credit">{t('createdBy')}</p>
       </div>
     )
   }
