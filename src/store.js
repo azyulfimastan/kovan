@@ -139,7 +139,7 @@ export const cloudStore = {
   subscribe(wid, h) {
     const f = `workspace_id=eq.${wid}`
     const ch = sb
-      .channel('notes:' + wid)
+      .channel('notes:' + wid, { config: { private: true } })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notes', filter: f }, (p) => h.insert(p.new))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notes', filter: f }, (p) => h.update(p.new))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'notes' }, (p) => h.remove(p.old.id))
@@ -155,7 +155,8 @@ export const cloudStore = {
     }
   },
   liveChannel(noteId, handlers) {
-    const ch = sb.channel('live:' + noteId, { config: { broadcast: { self: false } } })
+    // private: only members of the note's room may join (see supabase/realtime_private.sql)
+    const ch = sb.channel('live:' + noteId, { config: { private: true, broadcast: { self: false } } })
     for (const ev of Object.keys(handlers)) ch.on('broadcast', { event: ev }, (m) => handlers[ev](m.payload))
     let ok = false
     const waiting = []
@@ -211,7 +212,7 @@ export const cloudStore = {
     return sb.storage.from('note-images').getPublicUrl(path).data.publicUrl
   },
   presence(wid, user, cb) {
-    const ch = sb.channel('presence:' + wid, { config: { presence: { key: user.id } } })
+    const ch = sb.channel('presence:' + wid, { config: { private: true, presence: { key: user.id } } })
     ch.on('presence', { event: 'sync' }, () => {
       const s = ch.presenceState()
       cb(
