@@ -1892,4 +1892,4 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .splash .hive { align-self: center; }
 .splash-credit { margin: 0 0 calc(28px + env(safe-area-inset-bottom)); font-size: 16px; animation: none; }
 
-.side .credit { white-space: nowrap; font-size: 14px; }
+.side .credit { font-size: 13px; line-height: 1.3; }
