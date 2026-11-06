@@ -77,6 +77,15 @@ test('note menu has History (cloud only) and it opens', async () => {
   await ctx.close()
 })
 
+test('notification bell is next to the name and starts off', async () => {
+  const { ctx, page } = await open()
+  const bell = page.locator('.me .push-btn')
+  assert.equal(await bell.count(), 1)
+  assert.equal(await bell.getAttribute('aria-pressed'), 'false')
+  assert.match(await bell.getAttribute('title'), /Turn on notifications/)
+  await ctx.close()
+})
+
 test('new room dialog creates a room', async () => {
   const { ctx, page, db } = await open()
   await page.locator('.room-tile.add').click()

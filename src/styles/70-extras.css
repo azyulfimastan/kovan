@@ -889,6 +889,9 @@
 .me .icon-btn {
   flex: none;
 }
+.push-btn.on {
+  color: var(--honey);
+}
 
 .usage {
   display: flex;

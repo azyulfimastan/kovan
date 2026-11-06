@@ -1,4 +1,38 @@
-const V = 'kovan-v4'
+const V = 'kovan-v5'
+
+// push notifications (see api/push.js)
+self.addEventListener('push', (e) => {
+  let d = {}
+  try {
+    d = e.data.json()
+  } catch {}
+  e.waitUntil(
+    self.registration.showNotification(d.title || 'Kovan', {
+      body: d.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: d.n || 'kovan',
+      data: { w: d.w, n: d.n },
+    }),
+  )
+})
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const { w, n } = e.notification.data || {}
+  const q = new URLSearchParams()
+  if (w) q.set('w', w)
+  if (n) q.set('n', n)
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+      const c = cs.find((x) => new URL(x.url).origin === location.origin)
+      if (c) {
+        c.postMessage({ kovan: 'open', w, n })
+        return c.focus()
+      }
+      return self.clients.openWindow('/?' + q)
+    }),
+  )
+})
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(V).then((c) => c.addAll(['/', '/favicon.svg', '/icon-192.png'])).then(() => self.skipWaiting()))
 })

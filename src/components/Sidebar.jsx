@@ -6,7 +6,7 @@ import { FOLDER_COLORS, QUOTA, fmtBytes, folderColor } from '../lib/util'
 
 export default function Sidebar(props) {
   const { t, lang, setLang } = useI18n()
-  const { addFolder, addingFolder, allNotes, closeSide, cycleFolderColor, drag, filter, folderName, folders, foldersOpen, installApp, installEvt, isIOS, members, newNote, nextTheme, notes, peers, setActiveId, setAddingFolder, setCtx, setDelAcc, setDialog, setFilter, setFolderName, setFoldersOpen, setView, setWid, signOut, standalone, theme, trash, usage, user, view, wid, wide, workspaces, ws } = props
+  const { push, togglePush, addFolder, addingFolder, allNotes, closeSide, cycleFolderColor, drag, filter, folderName, folders, foldersOpen, installApp, installEvt, isIOS, members, newNote, nextTheme, notes, peers, setActiveId, setAddingFolder, setCtx, setDelAcc, setDialog, setFilter, setFolderName, setFoldersOpen, setView, setWid, signOut, standalone, theme, trash, usage, user, view, wid, wide, workspaces, ws } = props
   return (
     <aside className="side">
       <div className="brand">
@@ -190,6 +190,9 @@ export default function Sidebar(props) {
           <div className="me">
             {user.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" /> : <span className="avatar">{(user.name || '?').slice(0, 1)}</span>}
             <span className="me-name">{user.name || user.email}</span>
+            <button className={'icon-btn push-btn' + (push === 'on' ? ' on' : '')} onClick={togglePush} title={push === 'on' ? t('pushTurnOff') : t('pushTurnOn')} aria-pressed={push === 'on'}>
+              <Icon name={push === 'on' ? 'bell' : 'bellOff'} size={16} />
+            </button>
             <button className="icon-btn" onClick={signOut} title={t('signOut')}>
               <Icon name="logout" size={16} />
             </button>

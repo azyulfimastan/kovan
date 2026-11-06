@@ -178,6 +178,12 @@ export const cloudStore = {
   async myUsage() {
     return Number(ok(await sb.rpc('my_usage')))
   },
+  async pushSubscribe(endpoint, p256dh, auth) {
+    ok(await sb.rpc('push_subscribe', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth }))
+  },
+  async pushUnsubscribe(endpoint) {
+    ok(await sb.rpc('push_unsubscribe', { p_endpoint: endpoint }))
+  },
   async listVersions(noteId) {
     return ok(await sb.from('note_versions').select('id,title,body,saved_by,saved_at').eq('note_id', noteId).order('saved_at', { ascending: false }).limit(50))
   },

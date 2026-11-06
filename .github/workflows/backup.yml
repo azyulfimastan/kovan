@@ -1,0 +1,66 @@
+name: backup
+# Every night: database + photos, encrypted with BACKUP_PASSWORD, kept 30 days as a download
+# on the Actions page. The repository is public, so the file is useless without the password.
+# Needs two repository secrets: SUPABASE_DB_URL and BACKUP_PASSWORD (see docs/BACKUP.md).
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DB: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+      SUPABASE_URL: https://wjlwtbvaxqwvnwnrblto.supabase.co
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$DB" ] || [ -z "$BACKUP_PASSWORD" ]; then
+            echo "Secrets SUPABASE_DB_URL / BACKUP_PASSWORD are not set yet - skipping."
+            echo "go=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install PostgreSQL 17 client
+        if: steps.check.outputs.go == 'yes'
+        run: |
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+      - name: Dump database and download photos
+        if: steps.check.outputs.go == 'yes'
+        run: |
+          set -euo pipefail
+          export PATH=/usr/lib/postgresql/17/bin:$PATH
+          mkdir -p out/images
+          pg_dump "$DB" --schema=public --no-owner --no-privileges -Fc -f out/database.dump
+          pg_dump "$DB" --table=auth.users --data-only --no-owner -Fc -f out/users.dump
+          psql "$DB" -Atc "select name from storage.objects where bucket_id = 'note-images'" > out/images.txt
+          echo "photos: $(wc -l < out/images.txt)"
+          cd out/images
+          failed=0
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            mkdir -p "$(dirname "$name")"
+            curl -sSf -o "$name" "$SUPABASE_URL/storage/v1/object/public/note-images/$name" || failed=$((failed+1))
+          done < ../images.txt
+          echo "photos not downloaded: $failed"
+      - name: Encrypt
+        if: steps.check.outputs.go == 'yes'
+        run: |
+          set -euo pipefail
+          f="kovan-backup-$(date -u +%F).tar.gz.enc"
+          tar -czf - -C out . | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BACKUP_PASSWORD -out "$f"
+          rm -rf out
+          ls -lh "$f"
+          echo "FILE=$f" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.go == 'yes'
+        with:
+          name: ${{ env.FILE }}
+          path: ${{ env.FILE }}
+          retention-days: 30
+          compression-level: 0

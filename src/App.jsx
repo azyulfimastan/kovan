@@ -13,6 +13,7 @@ const liveOn = cloud || import.meta.env.VITE_LIVE_LOCAL === '1'
 import { shrinkImage } from './lib/img'
 import { FOLDER_COLORS, QUOTA, fmtBytes, folderColor, imagesOf, initialTheme, lsDel, lsGet, lsSet, when } from './lib/util'
 import { exportRoom as buildRoomZip } from './lib/exportRoom'
+import { disablePush, enablePush, pushState, refreshPush } from './lib/push'
 import Sidebar from './components/Sidebar'
 import NoteList from './components/NoteList'
 import { ContextMenu, DeleteAccountDialog, FolderPicker, IosHint, JoinDialog, NewRoomDialog, Toast } from './components/Dialogs'
@@ -198,6 +199,46 @@ function Main() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0a1226' : '#f6f4ef')
   }, [theme])
 
+  // opened from a notification: /?w=<room>&n=<note>, or a message from the service worker
+  const openTarget = useRef(null)
+  const widNow = useRef(null)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('w')) {
+      lsSet('kovan.ws', q.get('w'))
+      openTarget.current = q.get('n')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    const onMsg = (e) => {
+      if (e.data?.kovan !== 'open') return
+      if (e.data.w && e.data.w !== widNow.current) {
+        openTarget.current = e.data.n
+        setWid(e.data.w)
+      } else if (e.data.n && notesRef.current.some((x) => x.id === e.data.n)) openNote(e.data.n)
+    }
+    navigator.serviceWorker?.addEventListener('message', onMsg)
+    return () => navigator.serviceWorker?.removeEventListener('message', onMsg)
+  }, [])
+
+  // notifications on this device
+  const [push, setPush] = useState('off')
+  useEffect(() => {
+    if (!cloud || !user?.id) return
+    pushState().then(setPush).catch(() => {})
+    refreshPush()
+  }, [user?.id])
+  async function togglePush() {
+    if (push === 'unsupported') return isIOS && !standalone ? setIosHint(true) : flash('pushUnsupported')
+    if (push === 'denied') return flash('pushDenied')
+    try {
+      const s = push === 'on' ? await disablePush() : await enablePush()
+      setPush(s)
+      flash(s === 'on' ? 'pushOn' : s === 'denied' ? 'pushDenied' : 'pushOff')
+    } catch {
+      flash('error')
+    }
+  }
+
   // remember invite link before sign-in
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('join')
@@ -337,6 +378,7 @@ function Main() {
 
   // notes for the active workspace ---------------------------------------------
   useEffect(() => {
+    widNow.current = wid
     if (!wid || !user) return
     let alive = true
     setNotes([])
@@ -397,6 +439,9 @@ function Main() {
         }
         setNotes(list.filter((n) => !expired(n)))
         lsSet('kovan.ws', wid)
+        const target = openTarget.current
+        openTarget.current = null
+        if (target && list.some((n) => n.id === target && !n.deleted_at)) openNote(target)
         // changes that never reached the server last time (tab closed while offline): send them now,
         // unless the note was changed on the server after them
         try {
@@ -784,6 +829,7 @@ function Main() {
 
   async function signOut() {
     flushAll()
+    await disablePush().catch(() => {}) // this device should not get the next person's notifications
     await store.signOut()
     setUser(null)
   }
@@ -1063,6 +1109,8 @@ function Main() {
         setView={setView}
         setWid={setWid}
         signOut={signOut}
+        push={push}
+        togglePush={togglePush}
         standalone={standalone}
         theme={theme}
         trash={trash}
