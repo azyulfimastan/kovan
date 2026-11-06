@@ -5,3 +5,4 @@ dist
 .vercel
 .DS_Store
 visual-out/
+dist-mock/

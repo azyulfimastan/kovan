@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "test:unit": "node --test tests/roundtrip.test.mjs",
     "test:e2e": "node --test --test-concurrency=1 tests/e2e.test.cjs",
-    "test": "vite build && npm run test:unit && npm run test:e2e",
-    "visual": "vite build && node tests/visual.cjs"
+    "test": "vite build && npm run test:unit && npm run test:e2e && npm run test:cloud",
+    "visual": "vite build && node tests/visual.cjs",
+    "test:cloud": "vite build --mode mock --outDir dist-mock && node --test --test-concurrency=1 tests/cloud.test.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
