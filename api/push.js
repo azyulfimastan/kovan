@@ -34,8 +34,6 @@ export default async function handler(req, res) {
     return publicKey ? res.json({ publicKey }) : res.status(502).json({ ok: false })
   }
 
-  // give the writer a few seconds, so the notification shows the finished title
-  await new Promise((r) => setTimeout(r, 8000))
   const job = await rpc('push_claim', { p_id: id })
   if (!job?.subs?.length || !job.vapid_private) return res.json({ ok: true, sent: 0 })
 
@@ -46,7 +44,7 @@ export default async function handler(req, res) {
   await Promise.all(
     job.subs.map((s) =>
       webpush
-        .sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, msg, { TTL: 3600 })
+        .sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, msg, { TTL: 3600, urgency: 'high' }) // high: phones show it right away, even when asleep
         .then(() => sent++)
         .catch((e) => {
           if (e?.statusCode === 404 || e?.statusCode === 410) gone.push(s.endpoint)
