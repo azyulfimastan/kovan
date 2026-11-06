@@ -26,7 +26,15 @@ create table if not exists public.push_log (
   at timestamptz not null default now(),
   primary key (note_id, user_id)
 );
+-- the app's own notification key pair; made once by /api/push on first use (no one types it in)
+create table if not exists public.push_keys (
+  id int primary key default 1 check (id = 1),
+  public_key text not null,
+  private_key text not null,
+  created_at timestamptz not null default now()
+);
 -- no policies: only the functions below can read or write these tables
+alter table public.push_keys enable row level security;
 alter table public.push_subs enable row level security;
 alter table public.push_jobs enable row level security;
 alter table public.push_log enable row level security;
@@ -87,6 +95,16 @@ drop trigger if exists notes_push on public.notes;
 create trigger notes_push after insert or update of title, body on public.notes
   for each row execute function public.notes_push();
 
+create or replace function public.push_public_key() returns text
+language sql stable security definer set search_path = public as $$
+  select public_key from push_keys where id = 1;
+$$;
+
+create or replace function public.push_keys_init(p_public text, p_private text) returns void
+language sql security definer set search_path = public as $$
+  insert into push_keys (id, public_key, private_key) values (1, p_public, p_private) on conflict (id) do nothing;
+$$;
+
 -- called by /api/push: returns the job once, with the note's current title
 create or replace function public.push_claim(p_id uuid) returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -100,7 +118,8 @@ begin
   if j.id is null then return null; end if;
   select * into n from notes where id = (j.payload ->> 'n')::uuid;
   if n.id is null or n.deleted_at is not null then return null; end if;
-  return j.payload || jsonb_build_object('body',
+  return j.payload || (select jsonb_build_object('vapid_public', public_key, 'vapid_private', private_key) from push_keys where id = 1)
+    || jsonb_build_object('body',
     coalesce(j.payload ->> 'actor', '?') || ': ' ||
     coalesce(nullif(n.title, ''), left(regexp_replace(coalesce(n.body, ''), '[#*_>`\[\]!]|\(http[^)]*\)', '', 'g'), 80)));
 end $$;
@@ -120,4 +139,6 @@ grant execute on function public.push_subscribe(text, text, text) to authenticat
 grant execute on function public.push_unsubscribe(text) to authenticated;
 revoke all on function public.notes_push() from public, anon, authenticated;
 grant execute on function public.push_claim(uuid) to anon, authenticated;
+grant execute on function public.push_public_key() to anon, authenticated;
+grant execute on function public.push_keys_init(text, text) to anon;
 grant execute on function public.push_drop(uuid, text[]) to anon, authenticated;

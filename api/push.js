@@ -1,33 +1,42 @@
-// Sends push notifications for one job made by the notes_push trigger (supabase/push.sql).
-// Needs the VAPID_PRIVATE_KEY environment variable in Vercel (the public key is below).
+// Push notifications (see supabase/push.sql).
+// GET  -> { publicKey }: the app's notification key; made and stored the first time it is asked for.
+// POST { id } -> sends the notifications of one job made by the notes_push trigger.
 import webpush from 'web-push'
 
-export const VAPID_PUBLIC = 'BLHmceZO3vBLyN8BhIM73Hi6cnMhAvTL9BYm8YRSBWavGaeZPtJbdyycZnD-HB9cExar60m_hsXEefSzwzlqJDA'
 export const config = { maxDuration: 30 }
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store')
-  if (req.method !== 'POST') return res.status(405).json({ ok: false })
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ ok: false })
   const id = req.body?.id
-  if (!/^[0-9a-f-]{36}$/i.test(id || '')) return res.status(400).json({ ok: false })
+  if (req.method === 'POST' && !/^[0-9a-f-]{36}$/i.test(id || '')) return res.status(400).json({ ok: false })
   const url = process.env.VITE_SUPABASE_URL
   const key = process.env.VITE_SUPABASE_ANON_KEY
-  const priv = process.env.VAPID_PRIVATE_KEY
-  if (!url || !key || !priv) return res.status(500).json({ ok: false, error: 'missing env' })
+  if (!url || !key) return res.status(500).json({ ok: false, error: 'missing env' })
 
-  const rpc = (fn, args) =>
+  const rpc = (fn, args = {}) =>
     fetch(`${url}/rest/v1/rpc/${fn}`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(args),
     }).then((r) => (r.ok ? r.json() : null))
 
+  if (req.method === 'GET') {
+    let publicKey = await rpc('push_public_key')
+    if (!publicKey) {
+      const k = webpush.generateVAPIDKeys()
+      await rpc('push_keys_init', { p_public: k.publicKey, p_private: k.privateKey })
+      publicKey = await rpc('push_public_key') // whichever pair was stored first
+    }
+    return publicKey ? res.json({ publicKey }) : res.status(502).json({ ok: false })
+  }
+
   // give the writer a few seconds, so the notification shows the finished title
   await new Promise((r) => setTimeout(r, 8000))
   const job = await rpc('push_claim', { p_id: id })
-  if (!job?.subs?.length) return res.json({ ok: true, sent: 0 })
+  if (!job?.subs?.length || !job.vapid_private) return res.json({ ok: true, sent: 0 })
 
-  webpush.setVapidDetails('https://kovan-notes.vercel.app', VAPID_PUBLIC, priv)
+  webpush.setVapidDetails('https://kovan-notes.vercel.app', job.vapid_public, job.vapid_private)
   const msg = JSON.stringify({ title: job.title || 'Kovan', body: job.body || '', w: job.w, n: job.n })
   const gone = []
   let sent = 0

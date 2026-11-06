@@ -32,6 +32,7 @@ pg_restore --no-owner --no-privileges -d "$DB" database.dump
 
 ## Notifications
 
-`supabase/push.sql` + `api/push.js`. Needs the Vercel environment variable `VAPID_PRIVATE_KEY`
-(the matching public key is in `api/push.js` and `src/lib/push.js`). Each person turns them on
-per device with the bell next to their name. On iPhone, add Kovan to the home screen first.
+`supabase/push.sql` + `api/push.js`. Nothing to set up: the app makes its own notification key
+the first time someone turns them on, and keeps it in the database (table `push_keys`).
+Each person turns them on per device with the bell next to their name.
+On iPhone, add Kovan to the home screen first.

@@ -1,7 +1,9 @@
 // Push notifications in the browser: turn on/off for this device.
 import { store } from '../store.js'
 
-export const VAPID_PUBLIC = 'BLHmceZO3vBLyN8BhIM73Hi6cnMhAvTL9BYm8YRSBWavGaeZPtJbdyycZnD-HB9cExar60m_hsXEefSzwzlqJDA'
+// the app's notification key (public half), made once by api/push.js
+const publicKey = () =>
+  fetch('/api/push').then((r) => (r.ok ? r.json() : Promise.reject(new Error('no key')))).then((j) => j.publicKey)
 
 export const pushSupported = () =>
   typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
@@ -36,7 +38,7 @@ export async function enablePush() {
   if (perm !== 'granted') return perm === 'denied' ? 'denied' : 'off'
   const r = await reg(true)
   if (!r) throw new Error('no service worker')
-  const sub = (await r.pushManager.getSubscription()) || (await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(VAPID_PUBLIC) }))
+  const sub = (await r.pushManager.getSubscription()) || (await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(await publicKey()) }))
   await save(sub)
   return 'on'
 }
