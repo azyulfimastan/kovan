@@ -1,5 +1,5 @@
 name: backup
-# Every night: database + photos, encrypted with BACKUP_PASSWORD, kept 30 days as a download
+# Every night: database + photos, encrypted with BACKUP_PASSWORD, kept 90 days as a download
 # on the Actions page. The repository is public, so the file is useless without the password.
 # Needs two repository secrets: SUPABASE_DB_URL and BACKUP_PASSWORD (see docs/BACKUP.md).
 on:
@@ -62,5 +62,5 @@ jobs:
         with:
           name: ${{ env.FILE }}
           path: ${{ env.FILE }}
-          retention-days: 30
+          retention-days: 90
           compression-level: 0

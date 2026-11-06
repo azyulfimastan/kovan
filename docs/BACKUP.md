@@ -4,7 +4,7 @@
 
 `.github/workflows/backup.yml` runs every night (and on demand: Actions → backup → Run workflow).
 It saves the whole database (notes, rooms, folders, history, accounts) and every photo into one
-file, encrypts it with your password, and keeps it for 30 days on the run's page.
+file, encrypts it with your password, and keeps it for 90 days on the run's page.
 
 ### One-time setup (GitHub → repository → Settings → Secrets and variables → Actions → New repository secret)
 
