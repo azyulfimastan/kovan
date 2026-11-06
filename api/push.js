@@ -19,7 +19,10 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(args),
-    }).then((r) => (r.ok ? r.json() : null))
+    }).then(async (r) => {
+      const t = r.ok ? await r.text() : ''
+      return t ? JSON.parse(t) : null // void functions answer 204 with no body
+    })
 
   if (req.method === 'GET') {
     let publicKey = await rpc('push_public_key')
