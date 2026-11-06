@@ -11,44 +11,9 @@ import Login from './Login'
 
 const liveOn = cloud || import.meta.env.VITE_LIVE_LOCAL === '1'
 import { shrinkImage } from './lib/img'
-
-const lsGet = (k) => {
-  try {
-    return localStorage.getItem(k)
-  } catch {
-    return null
-  }
-}
-const lsSet = (k, v) => {
-  try {
-    localStorage.setItem(k, v)
-  } catch {}
-}
-const lsDel = (k) => {
-  try {
-    localStorage.removeItem(k)
-  } catch {}
-}
-
-const FOLDER_COLORS = ['#3b82d6', '#3fa56a', '#d9822b', '#8a63d2', '#d9534f', '#17a2b8', '#c2478f', '#7a8a2c', '#e0b020', '#5b6ee1', '#2f9e8f', '#8d6e63']
-const QUOTA = 300 * 1024 * 1024
-const fmtBytes = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b >= 1048576 ? Math.round(b / 1048576) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
-// photos a note uses: attached ones and any pasted into the text
-const IMG_RE = /https?:\/\/[^\s)"'<>]+\/note-images\/[^\s)"'<>]+/g
-const imagesOf = (n) => [...new Set([...(n?.images || []), ...((n?.body || '').match(IMG_RE) || [])])]
-const folderColor = (f) => {
-  if (!f) return null
-  if (f.color && FOLDER_COLORS.includes(f.color)) return f.color
-  let h = 0
-  for (const ch of String(f.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return FOLDER_COLORS[h % FOLDER_COLORS.length]
-}
-
-function initialTheme() {
-  const s = lsGet('kovan.theme')
-  if (s === 'light' || s === 'dark') return s
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
+import { FOLDER_COLORS, QUOTA, fmtBytes, folderColor, imagesOf, initialTheme, lsDel, lsGet, lsSet, when } from './lib/util'
+import { exportRoom as buildRoomZip } from './lib/exportRoom'
+import { ContextMenu, DeleteAccountDialog, FolderPicker, IosHint, JoinDialog, NewRoomDialog, Toast } from './components/Dialogs'
 
 export default function App() {
   const [lang, setLangState] = useState(detectLang)
@@ -67,13 +32,6 @@ export default function App() {
       <Main />
     </I18n.Provider>
   )
-}
-
-function when(iso, lang) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const day = d.toLocaleDateString(lang, d.getFullYear() === new Date().getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
-  return `${day} ${d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })}`
 }
 
 function Main() {
@@ -104,14 +62,13 @@ function Main() {
     const drop = urls.filter((u) => !used.has(u))
     if (drop.length) store.removeImages(drop).then(refreshUsage).catch(() => {})
   }, [refreshUsage])
-  const [delAcc, setDelAcc] = useState(null) // null | { text: '', busy: false, err: '' }
+  const [delAcc, setDelAcc] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const lastCard = useRef(null)
   const [ctx, setCtx] = useState(null) // right-click menu {x,y,kind,item}
   const [drag, setDrag] = useState(null) // {id,title,x,y,over}
   const lp = useRef({ t: null, fired: false, x: 0, y: 0 })
   const [folderName, setFolderName] = useState('')
-  const [newWsInvite, setNewWsInvite] = useState(true)
   const [user, setUser] = useState(undefined) // undefined = checking, null = signed out
   const userRef = useRef(null)
   userRef.current = user
@@ -138,8 +95,6 @@ function Main() {
   const [peers, setPeers] = useState([])
   const [members, setMembers] = useState([])
   const [dialog, setDialog] = useState(null) // 'share' | 'newws'
-  const [newWsName, setNewWsName] = useState('')
-  const [joinText, setJoinText] = useState('')
   const [joinBusy, setJoinBusy] = useState(false)
   const [palette, setPalette] = useState(false)
   const [sideOpen, setSideOpen] = useState(false)
@@ -713,17 +668,13 @@ function Main() {
     await purgeMany(trash.map((n) => n.id))
   }
 
-  async function createWorkspace(e) {
-    e.preventDefault()
-    const name = newWsName.trim()
-    if (!name) return
+  async function createWorkspace(name, invite) {
     try {
       const w = await store.createWorkspace(name)
       welcome.current = w.id
       setWorkspaces((l) => [...l, w])
       setWid(w.id)
-      setNewWsName('')
-      setDialog(cloud && newWsInvite ? 'share' : null)
+      setDialog(cloud && invite ? 'share' : null)
     } catch {
       flash('error')
     }
@@ -741,9 +692,9 @@ function Main() {
     }
   }
 
-  async function joinRoom(e) {
+  async function joinRoom(e, text) {
     e.preventDefault()
-    const raw = joinText.trim()
+    const raw = text.trim()
     const link = /join=([A-Za-z0-9]+)/.exec(raw)
     const code = link ? link[1] : raw.replace(/\s|-/g, '')
     if (!code) return
@@ -754,7 +705,6 @@ function Main() {
       setWorkspaces(list)
       setWid(id)
       setDialog(null)
-      setJoinText('')
       flash('joined')
     } catch (err) {
       flash(/too many/i.test(err?.message || '') ? 'tooMany' : 'badCode')
@@ -794,49 +744,11 @@ function Main() {
     store.updateFolder(f.id, { color: next }).catch(() => flash('error'))
   }
 
-  // the whole room as a ZIP: one .md file per note in folder subfolders, photos next to them
+  // the whole room as a ZIP (see lib/exportRoom.js)
   async function exportRoom() {
     flash('exporting')
     try {
-      const { makeZip, safeName } = await import('./lib/zip')
-      const files = []
-      const names = new Set()
-      const uniq = (path) => {
-        let p = path
-        for (let i = 2; names.has(p.toLowerCase()); i++) p = path.replace(/(\.\w+)$/, ` (${i})$1`)
-        names.add(p.toLowerCase())
-        return p
-      }
-      const imgPath = new Map()
-      for (const url of [...new Set(notes.flatMap((n) => [...(n.images || []), ...((n.body || '').match(IMG_RE) || [])]))]) {
-        try {
-          let data
-          if (url.startsWith('data:')) data = Uint8Array.from(atob(url.split(',')[1] || ''), (c) => c.charCodeAt(0))
-          else data = new Uint8Array(await (await fetch(url)).arrayBuffer())
-          const ext = /\.(png|gif|webp|jpe?g)(\?|$)/i.exec(url)?.[1] || (url.startsWith('data:image/png') ? 'png' : 'jpg')
-          const p = uniq(`images/${String(imgPath.size + 1).padStart(3, '0')}.${ext}`)
-          imgPath.set(url, p)
-          files.push({ name: p, data })
-        } catch {}
-      }
-      for (const n of notes) {
-        const folder = folders.find((f) => f.id === n.folder_id)
-        const dir = folder ? safeName(folder.name, 'folder') + '/' : ''
-        const up = dir ? '../' : ''
-        let body = n.body || ''
-        for (const [u, p] of imgPath) body = body.split(u).join(up + p)
-        const extra = (n.images || []).filter((u) => imgPath.has(u)).map((u) => `![](${up}${imgPath.get(u)})`).join('\n\n')
-        const text = (n.title ? `# ${n.title}\n\n` : '') + body + (extra ? `\n\n${extra}\n` : '\n')
-        files.push({ name: uniq(dir + safeName(n.title, t('untitled')) + '.md'), data: text, date: new Date(n.updated_at || Date.now()) })
-      }
-      const blob = makeZip(files)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `Kovan - ${safeName(ws?.name, 'notes')} - ${new Date().toISOString().slice(0, 10)}.zip`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+      await buildRoomZip({ notes, folders, roomName: ws?.name, untitled: t('untitled') })
       flash('exported')
     } catch {
       flash('error')
@@ -1304,7 +1216,7 @@ function Main() {
               <button className="icon-btn" onClick={signOut} title={t('signOut')}>
                 <Icon name="logout" size={16} />
               </button>
-              <button className="icon-btn danger-ico" onClick={() => setDelAcc({ text: '', busy: false, err: '' })} title={t('deleteAccount')}>
+              <button className="icon-btn danger-ico" onClick={() => setDelAcc(true)} title={t('deleteAccount')}>
                 <Icon name="trash" size={16} />
               </button>
             </div>
@@ -1610,210 +1522,73 @@ function Main() {
         />
       )}
 
-      {dialog === 'join' && (
-        <div className="overlay" onMouseDown={() => setDialog(null)}>
-          <form className="dialog small" onMouseDown={(e) => e.stopPropagation()} onSubmit={joinRoom}>
-            <div className="dlg-head">
-              <h3>{t('joinRoom')}</h3>
-            </div>
-            <span className="muted">{t('joinHint')}</span>
-            <input
-              className="code-input"
-              autoFocus
-              inputMode="numeric"
-              autoComplete="off"
-              value={joinText}
-              onChange={(e) => setJoinText(e.target.value)}
-              placeholder="000 000"
-              maxLength={200}
-            />
-            <div className="dlg-foot">
-              <button type="button" className="btn ghost" onClick={() => setDialog(null)}>
-                {t('cancel')}
-              </button>
-              <button className="btn primary" disabled={!joinText.trim() || joinBusy}>
-                {t('join')}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {dialog === 'join' && <JoinDialog busy={joinBusy} onClose={() => setDialog(null)} onSubmit={joinRoom} />}
 
       {ctx && (
-        <>
-          <div className="menu-scrim" style={{ zIndex: 119 }} onMouseDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }} />
-          <div className="ctx-menu" style={{ left: Math.min(ctx.x, window.innerWidth - 190), top: Math.min(ctx.y, window.innerHeight - 160) }}>
-            {ctx.kind === 'note' && (
-              <>
-                <button onClick={() => { setMoveId(ctx.item.id); setCtx(null) }}>
-                  <Icon name="folder" size={15} /> {t('moveFolder')}
-                </button>
-                <button onClick={() => { edit(ctx.item.id, { pinned: !ctx.item.pinned }, true); setCtx(null) }}>
-                  <Icon name="pin" size={15} /> {ctx.item.pinned ? t('unpin') : t('pin')}
-                </button>
-              </>
-            )}
-            {ctx.kind === 'ws' && (
-              <button onClick={() => { setCtx(null); exportRoom() }}>
-                <Icon name="download" size={15} /> {t('exportAll')}
-              </button>
-            )}
-            {!(ctx.kind === 'ws' && !cloud) && (
-              <button className="danger" onClick={() => { const c = ctx; setCtx(null); c.kind === 'note' ? removeNote(c.item.id) : c.kind === 'ws' ? removeRoom(c.item) : removeFolder(c.item) }}>
-                <Icon name="trash" size={15} /> {ctx.kind === 'ws' ? (ctx.item.owner_id === user.id ? t('deleteWs') : t('leave')) : t('delete')}
-              </button>
-            )}
-          </div>
-        </>
+        <ContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          onClose={() => setCtx(null)}
+          items={[
+            ...(ctx.kind === 'note'
+              ? [
+                  { icon: 'folder', label: t('moveFolder'), run: () => setMoveId(ctx.item.id) },
+                  { icon: 'pin', label: ctx.item.pinned ? t('unpin') : t('pin'), run: () => edit(ctx.item.id, { pinned: !ctx.item.pinned }, true) },
+                ]
+              : []),
+            ...(ctx.kind === 'ws' ? [{ icon: 'download', label: t('exportAll'), run: exportRoom }] : []),
+            ...(ctx.kind === 'ws' && !cloud
+              ? []
+              : [
+                  {
+                    icon: 'trash',
+                    danger: true,
+                    label: ctx.kind === 'ws' ? (ctx.item.owner_id === user.id ? t('deleteWs') : t('leave')) : t('delete'),
+                    run: () => (ctx.kind === 'note' ? removeNote(ctx.item.id) : ctx.kind === 'ws' ? removeRoom(ctx.item) : removeFolder(ctx.item)),
+                  },
+                ]),
+          ]}
+        />
       )}
 
-      {delAcc && (
-        <div className="overlay" onMouseDown={() => !delAcc.busy && setDelAcc(null)}>
-          <form
-            className="dialog small"
-            onMouseDown={(e) => e.stopPropagation()}
-            onSubmit={async (e) => {
-              e.preventDefault()
-              if (delAcc.text.trim().toLowerCase() !== (user.email || '').toLowerCase()) return
-              setDelAcc((d) => ({ ...d, busy: true, err: '' }))
-              try {
-                await store.deleteMyAccount()
-                window.location.replace('/')
-              } catch (err) {
-                setDelAcc((d) => ({ ...d, busy: false, err: err.message || String(err) }))
-              }
-            }}
-          >
-            <div className="dlg-head">
-              <h3>{t('deleteAccount')}</h3>
-            </div>
-            <p className="muted">{t('deleteAccountWarn')}</p>
-            <p className="muted">{t('typeEmail', { email: user.email })}</p>
-            <input className="code-input" autoFocus autoComplete="off" value={delAcc.text} onChange={(e) => setDelAcc((d) => ({ ...d, text: e.target.value }))} placeholder={user.email} />
-            {delAcc.err && <p style={{ color: '#ff7b7b' }}>{delAcc.err}</p>}
-            <div className="dlg-foot">
-              <button type="button" className="btn" onClick={() => setDelAcc(null)} disabled={delAcc.busy}>
-                {t('cancel')}
-              </button>
-              <button type="submit" className="btn danger" disabled={delAcc.busy || delAcc.text.trim().toLowerCase() !== (user.email || '').toLowerCase()}>
-                {t('deleteAccountGo')}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {delAcc && <DeleteAccountDialog email={user.email} onClose={() => setDelAcc(false)} />}
 
-      {bulkMove && (
-        <div className="overlay" onMouseDown={() => setBulkMove(false)}>
-          <div className="dialog small move-sheet" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="dlg-head">
-              <h3>{t('moveFolder')}</h3>
-            </div>
-            <p className="muted move-title">{t('nSelected', { n: String(selIds.length) })}</p>
-            <div className="move-list">
-              <button onClick={() => bulkPick(null)}>
-                <Icon name="notes" size={16} /> {t('noFolder')}
-              </button>
-              {folders.map((f) => (
-                <button key={f.id} onClick={() => bulkPick(f.id)}>
-                  <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {bulkMove && <FolderPicker title={t('nSelected', { n: String(selIds.length) })} folders={folders} current={undefined} onPick={bulkPick} onClose={() => setBulkMove(false)} />}
 
-      {moveId && (() => {
-        const mn = notes.find((n) => n.id === moveId)
-        if (!mn) return null
-        const pick = (fid) => { edit(mn.id, { folder_id: fid }, true); setMoveId(null) }
-        return (
-          <div className="overlay" onMouseDown={() => setMoveId(null)}>
-            <div className="dialog small move-sheet" onMouseDown={(e) => e.stopPropagation()}>
-              <div className="dlg-head">
-                <h3>{t('moveFolder')}</h3>
-              </div>
-              <p className="muted move-title">{mn.title || t('untitled')}</p>
-              <button className="btn soft wide sheet-board" onClick={() => { toggleBoard(mn); setMoveId(null) }}>
-                <Icon name="board" size={16} /> {mn.column_id ? t('removeFromBoard') : t('addToBoard')}
-              </button>
-              <div className="move-list">
-                <button className={!mn.folder_id ? 'on' : ''} onClick={() => pick(null)}>
-                  <Icon name="notes" size={16} /> {t('noFolder')}
-                </button>
-                {folders.map((f) => (
-                  <button key={f.id} className={mn.folder_id === f.id ? 'on' : ''} onClick={() => pick(f.id)}>
-                    <span className="f-dot" style={{ background: folderColor(f) }} /> {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
-      {iosHint && (
-        <div className="overlay" onMouseDown={() => setIosHint(false)}>
-          <div className="dialog small ios-hint" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="dlg-head">
-              <h3>{t('installApp')}</h3>
-            </div>
-            <ol>
-              <li>{t('iosStep1')}</li>
-              <li>{t('iosStep2')}</li>
-              <li>{t('iosStep3')}</li>
-            </ol>
-            <button className="btn primary wide" onClick={() => setIosHint(false)}>
-              {t('gotIt')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {dialog === 'newws' && (
-        <div className="overlay" onMouseDown={() => setDialog(null)}>
-          <form className="dialog small" onMouseDown={(e) => e.stopPropagation()} onSubmit={createWorkspace}>
-            <div className="dlg-head">
-              <h3>{t('newNotebook')}</h3>
-            </div>
-            <input autoFocus value={newWsName} onChange={(e) => setNewWsName(e.target.value)} placeholder={t('notebookName')} maxLength={80} />
-            {cloud && (
-              <>
-                <label className="check-row">
-                  <input type="checkbox" checked={newWsInvite} onChange={(e) => setNewWsInvite(e.target.checked)} />
-                  {t('roomWith')}
-                </label>
-                <span className="muted">{t('roomSoloHint')}</span>
-              </>
-            )}
-            <div className="dlg-foot">
-              <button type="button" className="btn ghost" onClick={() => setDialog(null)}>
-                {t('cancel')}
-              </button>
-              <button className="btn primary" disabled={!newWsName.trim()}>
-                {t('create')}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {toast && (
-        <div className="toast">
-          <span>{toast.text}</span>
-          {toast.action && (
-            <button
-              onClick={() => {
-                toast.action.run()
-                setToast('')
+      {moveId &&
+        (() => {
+          const mn = notes.find((n) => n.id === moveId)
+          if (!mn) return null
+          return (
+            <FolderPicker
+              title={mn.title || t('untitled')}
+              folders={folders}
+              current={mn.folder_id || null}
+              onClose={() => setMoveId(null)}
+              onPick={(fid) => {
+                edit(mn.id, { folder_id: fid }, true)
+                setMoveId(null)
               }}
-            >
-              {toast.action.label}
-            </button>
-          )}
-        </div>
-      )}
+              boardToggle={
+                <button
+                  className="btn soft wide sheet-board"
+                  onClick={() => {
+                    toggleBoard(mn)
+                    setMoveId(null)
+                  }}
+                >
+                  <Icon name="board" size={16} /> {mn.column_id ? t('removeFromBoard') : t('addToBoard')}
+                </button>
+              }
+            />
+          )
+        })()}
+
+      {iosHint && <IosHint onClose={() => setIosHint(false)} />}
+
+      {dialog === 'newws' && <NewRoomDialog cloud={cloud} onClose={() => setDialog(null)} onCreate={createWorkspace} />}
+
+      <Toast toast={toast} onDone={() => setToast('')} />
     </div>
   )
 }
