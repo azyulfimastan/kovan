@@ -1,0 +1,115 @@
+/* tokens, reset, page layout */
+
+:root {
+  --bg: #f6f4ef;
+  --panel: #fffefc;
+  --panel2: #efece4;
+  --ink: #17191e;
+  --muted: #6f7380;
+  --line: #e3dfd5;
+  --honey: #9c6b1e;
+  --honey-strong: #7d5416;
+  --honey-soft: #f1e6cf;
+  --on-accent: #ffffff;
+  --hex-core: #17191e;
+  --danger: #b9382a;
+  --shadow: 0 14px 44px rgba(20, 22, 30, 0.12);
+  --radius: 14px;
+  --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0a1226;
+  --panel: #101b36;
+  --panel2: #0d172e;
+  --ink: #e8ecf6;
+  --muted: #8d9ab6;
+  --line: #1f2d52;
+  --honey: #d8b66a;
+  --honey-strong: #ecd08e;
+  --honey-soft: #1f2a46;
+  --on-accent: #14100a;
+  --hex-core: #0a1226;
+  --danger: #ee7a6b;
+  --shadow: 0 14px 44px rgba(2, 6, 18, 0.6);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.muted {
+  color: var(--muted);
+}
+.grow {
+  flex: 1;
+}
+.logo-text {
+  font-family: var(--serif);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+kbd {
+  font: 500 11px var(--sans);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+:focus-visible {
+  outline: 2px solid var(--honey);
+  outline-offset: 2px;
+}
+
+/* ---------- layout ---------- */
+.shell {
+  display: grid;
+  grid-template-columns: 256px 330px minmax(0, 1fr);
+  height: 100dvh;
+}
+.shell.is-graph {
+  grid-template-columns: 256px minmax(0, 1fr);
+}
+.shell.is-graph .list {
+  display: none;
+}
+.only-mid {
+  display: none !important;
+}
+.scrim {
+  display: none;
+}
