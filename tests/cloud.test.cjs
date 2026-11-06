@@ -73,8 +73,7 @@ test('note menu has History (cloud only) and it opens', async () => {
   await page.waitForTimeout(800)
   await page.locator('.ed-bar .icon-btn').last().click()
   await page.locator('.more-menu button, .ed-more button', { hasText: 'History' }).first().click()
-  await page.locator('.hist-dlg').waitFor()
-  assert.match(await page.locator('.hist-dlg').innerText(), /No earlier versions/)
+  await page.locator('.hist-dlg', { hasText: 'No earlier versions' }).waitFor({ timeout: 15000 })
   await ctx.close()
 })
 
