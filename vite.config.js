@@ -13,6 +13,9 @@ export default defineConfig({
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'supabase', test: /node_modules[\\/](@supabase|tslib|ws)[\\/]/ },
+            // editor libraries: only loaded when a note is opened
+            { name: 'yjs', test: /node_modules[\\/](yjs|lib0|y-protocols|@tiptap[\\/]y-tiptap)[\\/]/ },
+            { name: 'tiptap', test: /node_modules[\\/](@tiptap|prosemirror-[\w-]+|linkifyjs|orderedmap|rope-sequence|w3c-keyname)[\\/]/ },
           ],
         },
       },
